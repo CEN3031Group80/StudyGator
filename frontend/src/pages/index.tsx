@@ -1,32 +1,58 @@
-import { gql, useQuery } from "@apollo/client";
+import React, { useState } from 'react';
+import ReactDOM from 'react-dom/client';
+import SearchBar from '../components/SearchBar';
+import { ApolloProvider, ApolloClient, InMemoryCache } from '@apollo/client';
 
-const TEST_QUERY = gql`
-query TestQuery {
-    test
-}
-`
+const client = new ApolloClient({
+  uri: process.env.NODE_ENV === 'development' ? 'http://localhost:8080/query' : 'https://studygator-api.chasemacdonnell.net/query',
+  cache: new InMemoryCache(),
+});
 
-const Index: React.FC = () => {
-    const { loading, error, data } = useQuery(TEST_QUERY);
+const Index = () => {
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchTerm, setSearchTerm] = useState(''); // Manage searchTerm state here.
 
-    if (loading) {
-        return (
-            <h1>Loading</h1>
-        )
+  const handleSearchResults = (results) => {
+    setSearchResults(results ?? []);
+  };
+
+  const renderSearchResults = () => {
+    if (searchResults.length === 0 && searchTerm.trim() !== '') {
+      return <div>No results found.</div>;
     }
 
-    if (error) {
-        return (
-            <h1>{error.message}</h1>
-        )
-    }
+    return searchResults.map((result) => (
+      <div key={result.id} style={{ marginBottom: '20px', textAlign: 'center' }}>
+        <img
+          src={`http://localhost:8080/${result.imagePath}`}
+          alt={result.classTitle}
+          style={{ maxWidth: '800px', borderRadius: '10px' }}
+        />
+        <div>{result.classTitle}</div>
+      </div>
+    ));
+  };
 
-    return (
+  return (
+    <ApolloProvider client={client}>
+      <div style={{ backgroundColor: '#FF4A00', minHeight: '100vh', padding: '20px' }}>
+        <SearchBar onResults={handleSearchResults} setSearchTerm={setSearchTerm} searchTerm={searchTerm} />
         <div>
-            <h1>Your random number is: {data.test}</h1>
-            <h1>Refresh the page to get a new one from the server!</h1>
+          <h2>Search Results:</h2>
+          {renderSearchResults()}
         </div>
-    )
+      </div>
+    </ApolloProvider>
+  );
+};
+
+const rootElement = document.getElementById('root');
+if (rootElement) {
+  ReactDOM.createRoot(rootElement).render(
+    <React.StrictMode>
+      <Index />
+    </React.StrictMode>,
+  );
 }
 
 export default Index;

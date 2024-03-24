@@ -1,3 +1,9 @@
 type Query {
-  test: Int!
+  SearchByClassTitle(term: String!): [Resource]
+}
+
+type Resource {
+  id: ID!
+  classTitle: String
+  imagePath: String
 }
