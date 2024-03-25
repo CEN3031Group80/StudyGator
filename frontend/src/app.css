@@ -1,0 +1,39 @@
+:root {
+    --background-blue: #0d406a; /* Light blue background */
+    --accent-orange: #FFA500; /* Orange accent for contrasts */
+    --button-blue: #ffa844; /* Blue for buttons */
+    --text-color: #ffddaa; /* Dark text for readability */
+  }
+  
+  body {
+    background-color: var(--background-blue);
+    color: var(--text-color);
+    font-family: 'Arial', sans-serif;
+  }
+  
+  .button {
+    background-color: var(--button-blue);
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  
+  .button:hover {
+    background-color: darken(var(--button-blue), 10%);
+  }
+  
+  .input {
+    padding: 10px;
+    margin-right: 5px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    transition: border-color 0.3s ease;
+  }
+  
+  .input:focus {
+    border-color: var(--accent-orange);
+    outline: none;
+  }

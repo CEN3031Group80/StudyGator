@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import Router from './Router';
 import { ApolloClient, ApolloProvider, InMemoryCache } from '@apollo/client';
+import './app.css';
 
 const uri = import.meta.env.DEV ? 'http://localhost:8080/query' : 'https://studygator-api.chasemacdonnell.net/query';
 

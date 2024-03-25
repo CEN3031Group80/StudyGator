@@ -8,7 +8,7 @@ const client = new ApolloClient({
   cache: new InMemoryCache(),
 });
 
-const Index = () => {
+const Search = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [searchTerm, setSearchTerm] = useState(''); // Manage searchTerm state here.
 
@@ -35,7 +35,7 @@ const Index = () => {
 
   return (
     <ApolloProvider client={client}>
-      <div style={{ backgroundColor: '#FF4A00', minHeight: '100vh', padding: '20px' }}>
+      <div style={{ backgroundColor: 'var(--background-blue)', minHeight: '100vh', padding: '20px' }}>
         <SearchBar onResults={handleSearchResults} setSearchTerm={setSearchTerm} searchTerm={searchTerm} />
         <div>
           <h2>Search Results:</h2>
@@ -50,9 +50,9 @@ const rootElement = document.getElementById('root');
 if (rootElement) {
   ReactDOM.createRoot(rootElement).render(
     <React.StrictMode>
-      <Index />
+      <Search />
     </React.StrictMode>,
   );
 }
 
-export default Index;
+export default Search;

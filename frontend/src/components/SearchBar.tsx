@@ -1,5 +1,6 @@
 // Import 'useEffect' to handle side effects.
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useApolloClient } from '@apollo/client';
 import gql from 'graphql-tag';
 
@@ -37,27 +38,25 @@ const SearchBar = ({ onResults, setSearchTerm, searchTerm }) => {
   }, [searchTerm]); // Dependency array ensures this runs only if searchTerm changes.
 
   return (
-    <div style={{ marginBottom: '20px' }}>
-      <input
-        type="text"
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-        placeholder="Search for a class"
-        style={{ padding: '10px', marginRight: '5px', borderRadius: '5px' }}
-      />
-      <button
-        onClick={handleSearch} // This button now explicitly triggers the search.
-        style={{
-          padding: '10px',
-          backgroundColor: '#0021A5',
-          color: 'white',
-          border: 'none',
-          borderRadius: '5px',
-          cursor: 'pointer'
-        }}
-      >
-        Search
-      </button>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+      <div>
+        <input
+          className="input"
+          type="text"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder="Search for a class"
+        />
+        <button
+          className="button"
+          onClick={handleSearch}
+        >
+          Search
+        </button>
+      </div>
+      <Link to="/">
+        <img src={`http://localhost:8080/images/studygator1.png`} alt="StudyGator Logo" style={{ maxWidth: '100px', height: 'auto' }} />
+      </Link>
     </div>
   );
 };
