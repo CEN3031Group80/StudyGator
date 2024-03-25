@@ -1,0 +1,17 @@
+[
+    {
+      "id": "1",
+      "classTitle": "Data Structures and Algorithms",
+      "imagePath": "images/DSA.jpg"
+    },
+    {
+      "id": "2",
+      "classTitle": "Fundamentals of Programming 1",
+      "imagePath": "images/ProgrammingFundamentals1.jpg"
+    },
+    {
+      "id": "3",
+      "classTitle": "Linear Algebra",
+      "imagePath": "images/LinearAlgebra.png"
+    }
+  ]
