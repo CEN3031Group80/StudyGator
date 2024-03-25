@@ -1,4 +1,3 @@
-// Import 'useEffect' to handle side effects.
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useApolloClient } from '@apollo/client';
@@ -30,12 +29,12 @@ const SearchBar = ({ onResults, setSearchTerm, searchTerm }) => {
     }
   };
 
-  // Use 'useEffect' to trigger the search when the search term changes.
+  //  'useEffect' triggers the search when the search term changes.
   useEffect(() => {
     if (searchTerm.trim() !== '') {
       handleSearch();
     }
-  }, [searchTerm]); // Dependency array ensures this runs only if searchTerm changes.
+  }, [searchTerm]); // dependency array ensures this runs only if searchTerm changes
 
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>

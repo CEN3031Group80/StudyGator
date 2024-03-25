@@ -1,6 +1,6 @@
 // src/pages/HomePage.tsx
 import React from 'react';
-import { useNavigate } from 'react-router-dom'; // If you're using react-router v6
+import { useNavigate } from 'react-router-dom';
 
 const HomePage = () => {
   const navigate = useNavigate();
@@ -20,7 +20,7 @@ const HomePage = () => {
           fontSize: '16px',
           marginTop: '20px',
         }}
-        onClick={() => navigate('/search')} // This should match the route you set for searching
+        onClick={() => navigate('/search')} 
       >
         Search for Materials
       </button>
