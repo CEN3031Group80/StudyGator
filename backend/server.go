@@ -32,10 +32,12 @@ func main() {
 	CSECRET, csecret_exists := os.LookupEnv("SG_GITHUB_CSECRET")
 	ORIGINS := []string{"https://studygator.chasemacdonnell.net", "https://studygator-api.chasemacdonnell.net"}
 	COOKIE_DOMAIN := "chasemacdonnell.net"
+	SAMESITE := http.SameSiteNoneMode
 	if !exists {
 		SECRET = "dev-secret"
 		URL = "http://localhost:8080"
 		COOKIE_DOMAIN = "localhost"
+		SAMESITE = http.SameSiteDefaultMode
 		ORIGINS = []string{"http://localhost:5173", "http://localhost:8080", "https://studygator.chasemacdonnell.net", "https://studygator-api.chasemacdonnell.net"}
 	}
 
@@ -61,6 +63,7 @@ func main() {
 		CookieDuration:  time.Hour * 24,  // cookie expires in 1 day and will enforce re-login
 		Issuer:          "studygator",
 		URL:             URL,
+		SameSiteCookie:  SAMESITE,
 		JWTCookieDomain: COOKIE_DOMAIN,
 		AvatarStore:     avatar.NewLocalFS("./avatars"),
 		// GraphQL by nature only uses POST requests, eliminating most XSRF vulneabilities.,
