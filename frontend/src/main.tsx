@@ -1,26 +1,37 @@
+import '@fontsource/roboto/300.css';
+import '@fontsource/roboto/400.css';
+import '@fontsource/roboto/500.css';
+import '@fontsource/roboto/700.css';
+
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import Router from './Router.tsx'
 import { ApolloClient, ApolloProvider, InMemoryCache } from '@apollo/client';
+import { CssBaseline, ThemeProvider, createTheme } from '@mui/material';
+
+export let apiUrl = "https://studygator-api.chasemacdonnell.net";
+export let rootUrl = "https://studygator.chasemacdonnell.net"
+
+if (import.meta.env.DEV) {
+  apiUrl = "/api";
+  rootUrl = "http://localhost:5174"
+}
 
 let client = new ApolloClient({
-  uri: 'https://studygator-api.chasemacdonnell.net/query',
+  uri: apiUrl + "/query",
   cache: new InMemoryCache(),
   credentials: "include"
 });
 
-if (import.meta.env.DEV) {
-  client = new ApolloClient({
-    uri: '/api/query',
-    cache: new InMemoryCache(),
-    credentials: "include"
-  });
-}
+let theme = createTheme();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <ApolloProvider client={client}>
-      <Router />
-    </ApolloProvider>
+    <ThemeProvider theme={theme}>
+      <ApolloProvider client={client}>
+        <CssBaseline />
+        <Router />
+      </ApolloProvider>
+    </ThemeProvider>
   </React.StrictMode>,
 )

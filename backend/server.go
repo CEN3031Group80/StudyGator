@@ -41,6 +41,8 @@ func main() {
 		ORIGINS = []string{"http://localhost:5173", "http://localhost:8080", "https://studygator.chasemacdonnell.net", "https://studygator-api.chasemacdonnell.net"}
 	}
 
+	// This CID and CSECRET are for a localhost only zero permission OAuth2 provider with Github, should be no problems with including this secret in the repo.
+	// The generated tokens have zero access to your github account and are only used for auth on this platform.
 	if !cid_exists {
 		CID = "1f3b435de0687155aa4f"
 	}
