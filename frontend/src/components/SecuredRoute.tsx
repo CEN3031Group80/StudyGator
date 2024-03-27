@@ -15,7 +15,7 @@ export default function SecuredRoute() {
                 if ("status" in body && body.status == "logged in") {
                     setStatus({ loading: false, error: "", data: true});
                 } else {
-                    setStatus({ loading: false, error: "invalid JSON data returned from auth", data: false});
+                    setStatus({ loading: false, error: "", data: false});
                 }
             }).catch(_ => {
                 setStatus({ loading: false, error: "failed to pull API data", data: false});
