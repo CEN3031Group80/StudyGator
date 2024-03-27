@@ -31,9 +31,11 @@ func main() {
 	CID, cid_exists := os.LookupEnv("SG_GITHUB_CID")
 	CSECRET, csecret_exists := os.LookupEnv("SG_GITHUB_CSECRET")
 	ORIGINS := []string{"https://studygator.chasemacdonnell.net", "https://studygator-api.chasemacdonnell.net"}
+	COOKIE_DOMAIN := "chasemacdonnell.net"
 	if !exists {
 		SECRET = "dev-secret"
 		URL = "http://localhost:8080"
+		COOKIE_DOMAIN = "localhost"
 		ORIGINS = []string{"http://localhost:5173", "http://localhost:8080", "https://studygator.chasemacdonnell.net", "https://studygator-api.chasemacdonnell.net"}
 	}
 
@@ -55,11 +57,12 @@ func main() {
 		SecretReader: token.SecretFunc(func(id string) (string, error) { // secret key for JWT
 			return SECRET, nil
 		}),
-		TokenDuration:  time.Minute * 5, // token expires in 5 minutes
-		CookieDuration: time.Hour * 24,  // cookie expires in 1 day and will enforce re-login
-		Issuer:         "studygator",
-		URL:            URL,
-		AvatarStore:    avatar.NewLocalFS("./avatars"),
+		TokenDuration:   time.Minute * 5, // token expires in 5 minutes
+		CookieDuration:  time.Hour * 24,  // cookie expires in 1 day and will enforce re-login
+		Issuer:          "studygator",
+		URL:             URL,
+		JWTCookieDomain: COOKIE_DOMAIN,
+		AvatarStore:     avatar.NewLocalFS("./avatars"),
 		// GraphQL by nature only uses POST requests, eliminating most XSRF vulneabilities.,
 		// Plus XSRF tokens are a quite controversial topic, and arguably dont work.
 		DisableXSRF: true,
