@@ -1,6 +1,6 @@
 import { Navigate, Outlet } from 'react-router-dom'
 import { apiUrl } from '../main';
-import { Alert, Container, LinearProgress, Stack, Typography } from '@mui/material';
+import { Alert, Container, LinearProgress, Stack } from '@mui/material';
 import Copyright from './Copyright';
 import { ReportProblem } from '@mui/icons-material';
 import { useEffect, useState } from 'react';
