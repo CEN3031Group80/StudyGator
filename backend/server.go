@@ -45,6 +45,11 @@ func main() {
 		CSECRET = "dbb30cf61105d17f12324ebdb9770be4f0f49553"
 	}
 
+	println("URL: ", URL)
+	println("SECRET: ", SECRET)
+	println("CID: ", CID)
+	println("CSECRET: ", CSECRET)
+
 	// Auth Options
 	options := auth.Opts{
 		SecretReader: token.SecretFunc(func(id string) (string, error) { // secret key for JWT
