@@ -1,0 +1,31 @@
+name: Frontend Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    permissions: write-all
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Use Node.js 18.x
+      uses: actions/setup-node@v3
+      with:
+        node-version: 18.x
+        cache: 'npm'
+        cache-dependency-path: '**/package-lock.json'
+    - run: cd frontend && npm install && npm run build
+    - name: Publish to Cloudflare Pages
+      uses: cloudflare/pages-action@v1
+      with:
+        apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        accountId: ba0b86a51561431dbb9080aa719670f1
+        projectName: studygator
+        directory: frontend/dist
+        gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+        branch: main

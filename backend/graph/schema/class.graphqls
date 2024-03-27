@@ -1,0 +1,10 @@
+type Class implements Node {
+    id: ID!
+    classInfo: ClassInfo!
+}
+
+type ClassInfo {
+    universityID: String!
+    name: String!
+    description: String!
+}

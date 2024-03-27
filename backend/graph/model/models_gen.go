@@ -2,5 +2,103 @@
 
 package model
 
+import (
+	"fmt"
+	"io"
+	"strconv"
+)
+
+type Node interface {
+	IsNode()
+	GetID() string
+}
+
+type AuthInfo struct {
+	Provider AuthProviders `json:"provider"`
+	Name     string        `json:"name"`
+	Email    string        `json:"email"`
+}
+
+type Class struct {
+	ID        string     `json:"id"`
+	ClassInfo *ClassInfo `json:"classInfo"`
+}
+
+func (Class) IsNode()            {}
+func (this Class) GetID() string { return this.ID }
+
+type ClassInfo struct {
+	UniversityID string `json:"universityID"`
+	Name         string `json:"name"`
+	Description  string `json:"description"`
+}
+
+type Post struct {
+	ID string `json:"id"`
+}
+
+func (Post) IsNode()            {}
+func (this Post) GetID() string { return this.ID }
+
+type Profile struct {
+	FirstName      string `json:"firstName"`
+	LastName       string `json:"lastName"`
+	School         string `json:"school"`
+	GraduationYear int    `json:"graduationYear"`
+}
+
 type Query struct {
+}
+
+type User struct {
+	ID        string    `json:"id"`
+	AvatarURL string    `json:"avatarURL"`
+	AuthInfo  *AuthInfo `json:"authInfo"`
+	Profile   *Profile  `json:"profile,omitempty"`
+}
+
+func (User) IsNode()            {}
+func (this User) GetID() string { return this.ID }
+
+type AuthProviders string
+
+const (
+	AuthProvidersGithub           AuthProviders = "GITHUB"
+	AuthProvidersGoogle           AuthProviders = "GOOGLE"
+	AuthProvidersUsernamepassword AuthProviders = "USERNAMEPASSWORD"
+)
+
+var AllAuthProviders = []AuthProviders{
+	AuthProvidersGithub,
+	AuthProvidersGoogle,
+	AuthProvidersUsernamepassword,
+}
+
+func (e AuthProviders) IsValid() bool {
+	switch e {
+	case AuthProvidersGithub, AuthProvidersGoogle, AuthProvidersUsernamepassword:
+		return true
+	}
+	return false
+}
+
+func (e AuthProviders) String() string {
+	return string(e)
+}
+
+func (e *AuthProviders) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = AuthProviders(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid AuthProviders", str)
+	}
+	return nil
+}
+
+func (e AuthProviders) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
 }

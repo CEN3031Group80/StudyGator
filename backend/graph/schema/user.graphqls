@@ -1,0 +1,31 @@
+# User defines an individual entity capable of creating marked content.
+type User implements Node {
+    # General Info
+    id: ID!
+    avatarURL: String!
+    # @adminOnly
+    authInfo: AuthInfo!
+    profile: Profile
+}
+
+# This is the information returned by the auth service, for admins only.
+type AuthInfo {
+    provider: AuthProviders!
+    name: String!
+    email: String!
+}
+
+# This is the publically available information about the person, add more information if wanted.
+type Profile {
+    firstName: String!
+    lastName: String!
+    school: String!
+    graduationYear: Int!
+}
+
+enum AuthProviders {
+    GITHUB
+    GOOGLE
+    USERNAMEPASSWORD
+}
+

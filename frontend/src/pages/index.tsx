@@ -2,7 +2,10 @@ import { gql, useQuery } from "@apollo/client";
 
 const TEST_QUERY = gql`
 query TestQuery {
-    test
+    me {
+        id
+        avatarURL
+    }
 }
 `
 
@@ -23,8 +26,7 @@ const Index: React.FC = () => {
 
     return (
         <div>
-            <h1>Your random number is: {data.test}</h1>
-            <h1>Refresh the page to get a new one from the server!</h1>
+            <h1>Your user id is: {data.me.id}</h1>
         </div>
     )
 }

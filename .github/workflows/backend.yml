@@ -1,0 +1,24 @@
+name: Backend
+
+on: 
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+
+    runs-on: self-hosted
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Go Tidy
+        run: cd backend && go mod tidy
+      - name: Run Go Generate
+        run: cd backend && go generate ./..
+      - name: Run Golang Tests
+        run: cd backend && go test
+      - name: Build
+        run: cd backend && go build -o main
+      - name: Move and Install
+        run: cd backend && rm /home/chase/server/main && mv ./main /home/chase/server && sudo systemctl restart studygator

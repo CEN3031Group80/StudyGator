@@ -6,12 +6,28 @@ package graph
 
 import (
 	"context"
-	"math/rand"
+	"study-gator-backend/graph/gqlcontext"
+	"study-gator-backend/graph/model"
 )
 
-// Test is the resolver for the test field.
-func (r *queryResolver) Test(ctx context.Context) (int, error) {
-	return rand.Intn(1000000), nil
+// Me is the resolver for the me field.
+func (r *queryResolver) Me(ctx context.Context) (*model.User, error) {
+	user := gqlcontext.UserFromContext(ctx)
+	return &model.User{
+		ID:        user.ID,
+		AvatarURL: user.Picture,
+		AuthInfo: &model.AuthInfo{
+			Provider: model.AuthProvidersGithub,
+			Name:     user.Name,
+			Email:    user.Email,
+		},
+		Profile: &model.Profile{
+			FirstName:      "Test",
+			LastName:       "Test",
+			School:         "UF",
+			GraduationYear: 2025,
+		},
+	}, nil
 }
 
 // Query returns QueryResolver implementation.

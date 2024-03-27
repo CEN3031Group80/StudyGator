@@ -10,7 +10,7 @@ let client = new ApolloClient({
 
 if (import.meta.env.DEV) {
   client = new ApolloClient({
-    uri: 'http://localhost:8080/query',
+    uri: '/api/query',
     cache: new InMemoryCache(),
   });
 }
