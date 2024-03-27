@@ -9,7 +9,7 @@ export default function SecuredRoute() {
 
     useEffect(() => {
         async function grabStatus() {
-            fetch(apiUrl + "/auth/status").then(async res => {
+            fetch(apiUrl + "/auth/status", { credentials: "include" }).then(async res => {
                 let body = await res.json();
                 
                 if ("status" in body && body.status == "logged in") {
@@ -25,7 +25,6 @@ export default function SecuredRoute() {
         grabStatus();
     }, []);
 
-    console.log(data)
     if (loading || data == undefined) {
         return (
             <Container component="main" maxWidth="xs">
@@ -40,7 +39,6 @@ export default function SecuredRoute() {
                 
                 </Stack>
                 <LinearProgress color='secondary' />
-                <Typography>Test: {loading ? "yes" : "no"} {data} </Typography>
                 <Copyright sx={{ mt: 8, mb: 4 }} />
             </Container>
         )
