@@ -13,12 +13,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Run Go Tidy
-        run: cd backend && go mod tidy
+        run: export PATH=$PATH:/usr/local/go/bin && cd backend && go mod tidy
       - name: Run Go Generate
-        run: cd backend && go generate ./..
+        run: export PATH=$PATH:/usr/local/go/bin && cd backend && go generate ./..
       - name: Run Golang Tests
-        run: cd backend && go test
+        run: export PATH=$PATH:/usr/local/go/bin && cd backend && go test
       - name: Build
-        run: cd backend && go build -o main
+        run: export PATH=$PATH:/usr/local/go/bin && cd backend && go build -o main
       - name: Move and Install
         run: cd backend && rm /home/chase/server/main && mv ./main /home/chase/server && sudo systemctl restart studygator
