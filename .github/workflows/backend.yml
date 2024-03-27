@@ -14,8 +14,6 @@ jobs:
       - uses: actions/checkout@v4
       - name: Run Go Tidy
         run: export PATH=$PATH:/usr/local/go/bin && cd backend && go mod tidy
-      - name: Run Go Generate
-        run: export PATH=$PATH:/usr/local/go/bin && cd backend && go generate ./..
       - name: Run Golang Tests
         run: export PATH=$PATH:/usr/local/go/bin && cd backend && go test
       - name: Build
