@@ -27,7 +27,7 @@ func main() {
 	}
 
 	SECRET, exists := os.LookupEnv("SG_SECRET")
-	URL := "https://studygator-api.chasemacdonnll.net"
+	URL := "https://studygator-api.chasemacdonnell.net"
 	CID, cid_exists := os.LookupEnv("SG_GITHUB_CID")
 	CSECRET, csecret_exists := os.LookupEnv("SG_GITHUB_CSECRET")
 	ORIGINS := []string{"https://studygator.chasemacdonnell.net", "https://studygator-api.chasemacdonnell.net"}
