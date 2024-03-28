@@ -33,6 +33,23 @@ type ClassInfo struct {
 	Description  string `json:"description"`
 }
 
+type Group struct {
+	ID      string  `json:"id"`
+	Name    string  `json:"name"`
+	Members []*User `json:"members"`
+}
+
+func (Group) IsNode()            {}
+func (this Group) GetID() string { return this.ID }
+
+type GroupInput struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type Mutation struct {
+}
+
 type Post struct {
 	ID string `json:"id"`
 }
@@ -53,12 +70,17 @@ type Query struct {
 type User struct {
 	ID        string    `json:"id"`
 	AvatarURL string    `json:"avatarURL"`
+	Groups    []*Group  `json:"groups"`
 	AuthInfo  *AuthInfo `json:"authInfo"`
 	Profile   *Profile  `json:"profile,omitempty"`
 }
 
 func (User) IsNode()            {}
 func (this User) GetID() string { return this.ID }
+
+type UserInput struct {
+	ID string `json:"id"`
+}
 
 type AuthProviders string
 
