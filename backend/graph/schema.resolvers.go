@@ -6,9 +6,86 @@ package graph
 
 import (
 	"context"
+	"errors"
 	"study-gator-backend/graph/gqlcontext"
 	"study-gator-backend/graph/model"
 )
+
+// CreateGroup is the resolver for the createGroup field.
+func (r *mutationResolver) CreateGroup(ctx context.Context, input string) ([]*model.Group, error) {
+	gqlcontext.MakeGroup(input)
+	retGroups := make([]*model.Group, 0)
+	for _, group := range gqlcontext.GetGroupDB() {
+		currUsers := make([]*model.User, 0)
+		for _, user := range group.Users {
+			currUsers = append(currUsers, &model.User{
+				ID:        user.ID,
+				AvatarURL: user.Picture,
+				AuthInfo: &model.AuthInfo{
+					Provider: model.AuthProvidersGithub,
+					Name:     user.Name,
+					Email:    user.Email,
+				},
+				Profile: &model.Profile{
+					FirstName:      "Test",
+					LastName:       "Test",
+					School:         "UF",
+					GraduationYear: 2025,
+				},
+			})
+		}
+		retGroups = append(retGroups, &model.Group{
+			ID:      group.ID,
+			Name:    group.Name,
+			Members: currUsers})
+	}
+	return retGroups, nil
+}
+
+// AddToGroup is the resolver for the addToGroup field.
+func (r *mutationResolver) AddToGroup(ctx context.Context, groupID string, userID string) (*model.Group, error) {
+	group, exists := gqlcontext.GetGroup(groupID)
+	if (!exists) {
+		return nil, errors.New("Could not find a group with that ID!")
+	}
+	alreadyThere := false
+	for _, user := range group.Users {
+		if (user.ID == userID) {
+			alreadyThere = true
+		}
+	}
+	user, exists := gqlcontext.GetUser(userID)
+	if (!exists) {
+		return nil, errors.New("Could not find a user with that ID!")
+	}
+	if (!alreadyThere) {
+		group.Users = append(group.Users,user)
+	}
+	gqlcontext.GetGroupDB()[groupID] = group
+	currUsers := make([]*model.User, 0)
+	for _, user := range group.Users {
+		currUsers = append(currUsers, &model.User{
+			ID:        user.ID,
+			AvatarURL: user.Picture,
+			AuthInfo: &model.AuthInfo{
+				Provider: model.AuthProvidersGithub,
+				Name:     user.Name,
+				Email:    user.Email,
+			},
+			Profile: &model.Profile{
+				FirstName:      "Test",
+				LastName:       "Test",
+				School:         "UF",
+				GraduationYear: 2025,
+			},
+		})
+	}
+	modelGroup := &model.Group{
+		ID:      group.ID,
+		Name:    group.Name,
+		Members: currUsers}
+	return modelGroup, nil
+}
 
 // Me is the resolver for the me field.
 func (r *queryResolver) Me(ctx context.Context) (*model.User, error) {
@@ -30,7 +107,64 @@ func (r *queryResolver) Me(ctx context.Context) (*model.User, error) {
 	}, nil
 }
 
+// Users is the resolver for the users field.
+func (r *queryResolver) Users(ctx context.Context) ([]*model.User, error) {
+	retUsers := make([]*model.User, 0)
+	for _, user := range gqlcontext.GetUserDB() {
+		retUsers = append(retUsers, &model.User{
+			ID:        user.ID,
+			AvatarURL: user.Picture,
+			AuthInfo: &model.AuthInfo{
+				Provider: model.AuthProvidersGithub,
+				Name:     user.Name,
+				Email:    user.Email,
+			},
+			Profile: &model.Profile{
+				FirstName:      "Test",
+				LastName:       "Test",
+				School:         "UF",
+				GraduationYear: 2025,
+			},
+		})
+	}
+	return retUsers, nil
+}
+
+// Groups is the resolver for the groups field.
+func (r *queryResolver) Groups(ctx context.Context) ([]*model.Group, error) {
+	retGroups := make([]*model.Group, 0)
+	for _, group := range gqlcontext.GetGroupDB() {
+		currUsers := make([]*model.User, 0)
+		for _, user := range group.Users {
+			currUsers = append(currUsers, &model.User{
+				ID:        user.ID,
+				AvatarURL: user.Picture,
+				AuthInfo: &model.AuthInfo{
+					Provider: model.AuthProvidersGithub,
+					Name:     user.Name,
+					Email:    user.Email,
+				},
+				Profile: &model.Profile{
+					FirstName:      "Test",
+					LastName:       "Test",
+					School:         "UF",
+					GraduationYear: 2025,
+				},
+			})
+		}
+		retGroups = append(retGroups, &model.Group{
+			ID:      group.ID,
+			Name:    group.Name,
+			Members: currUsers})
+	}
+	return retGroups, nil
+}
+
+// Mutation returns MutationResolver implementation.
+func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
+
 // Query returns QueryResolver implementation.
 func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 
+type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
