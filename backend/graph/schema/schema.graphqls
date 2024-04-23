@@ -2,10 +2,8 @@ type Query {
   #node(id: ID!): Node
 
   me: User!
-  users: [User!]
-  groups: [Group!]
 }
+
 type Mutation {
-  createGroup(input: String!): [Group!]!
-  addToGroup(groupID: ID!,userID: ID!): Group!
+  uploadFile(file: Upload!): Boolean!
 }
