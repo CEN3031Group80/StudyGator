@@ -8,6 +8,13 @@ type User implements Node {
     profile: Profile
 }
 
+type FriendRequest implements Node{
+    id: ID!
+    sender: User!
+    receiver: User!
+    accepted: Boolean! 
+}
+
 # This is the information returned by the auth service, for admins only.
 type AuthInfo {
     provider: AuthProviders!

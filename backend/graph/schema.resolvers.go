@@ -6,9 +6,105 @@ package graph
 
 import (
 	"context"
+	"fmt"
 	"study-gator-backend/graph/gqlcontext"
 	"study-gator-backend/graph/model"
 )
+
+// AddFriend is the resolver for the addFriend field.
+func (r *mutationResolver) AddFriend(ctx context.Context, id string) (*model.User, error) {
+	panic(fmt.Errorf("not implemented: AddFriend - addFriend"))
+}
+
+// AcceptFriendRequest is the resolver for the acceptFriendRequest field.
+func (r *mutationResolver) AcceptFriendRequest(ctx context.Context, id string) (*model.FriendRequest, error) {
+	panic(fmt.Errorf("not implemented: AcceptFriendRequest - acceptFriendRequest"))
+}
+
+// DeclineFriendRequest is the resolver for the declineFriendRequest field.
+func (r *mutationResolver) DeclineFriendRequest(ctx context.Context, id string) (*model.FriendRequest, error) {
+	panic(fmt.Errorf("not implemented: DeclineFriendRequest - declineFriendRequest"))
+}
+
+// RevokeOutgoingFriendRequest is the resolver for the revokeOutgoingFriendRequest field.
+func (r *mutationResolver) RevokeOutgoingFriendRequest(ctx context.Context, id string) (*model.FriendRequest, error) {
+	panic(fmt.Errorf("not implemented: RevokeOutgoingFriendRequest - revokeOutgoingFriendRequest"))
+}
+
+// CreateDm is the resolver for the createDM field.
+func (r *mutationResolver) CreateDm(ctx context.Context, ids []string, name *string) (*model.DirectMessage, error) {
+	panic(fmt.Errorf("not implemented: CreateDm - createDM"))
+}
+
+// SendMessage is the resolver for the sendMessage field.
+func (r *mutationResolver) SendMessage(ctx context.Context, id string) (*model.DirectMessagePost, error) {
+	panic(fmt.Errorf("not implemented: SendMessage - sendMessage"))
+}
+
+// CreateStudyGroup is the resolver for the createStudyGroup field.
+func (r *mutationResolver) CreateStudyGroup(ctx context.Context, classID string, name string, description string) (*model.StudyGroup, error) {
+	panic(fmt.Errorf("not implemented: CreateStudyGroup - createStudyGroup"))
+}
+
+// UpdateStudyGroup is the resolver for the updateStudyGroup field.
+func (r *mutationResolver) UpdateStudyGroup(ctx context.Context, id string, classID string, name string, description string) (*model.StudyGroup, error) {
+	panic(fmt.Errorf("not implemented: UpdateStudyGroup - updateStudyGroup"))
+}
+
+// DeleteStudyGroup is the resolver for the deleteStudyGroup field.
+func (r *mutationResolver) DeleteStudyGroup(ctx context.Context, id string) (*model.StudyGroup, error) {
+	panic(fmt.Errorf("not implemented: DeleteStudyGroup - deleteStudyGroup"))
+}
+
+// CreatePost is the resolver for the createPost field.
+func (r *mutationResolver) CreatePost(ctx context.Context, studyGroupID string, name string, content string, uploads []*model.UploadWithMeta) (*model.Post, error) {
+	panic(fmt.Errorf("not implemented: CreatePost - createPost"))
+}
+
+// UpdatePost is the resolver for the updatePost field.
+func (r *mutationResolver) UpdatePost(ctx context.Context, id string, name string, content string) (*model.Post, error) {
+	panic(fmt.Errorf("not implemented: UpdatePost - updatePost"))
+}
+
+// DeletePost is the resolver for the deletePost field.
+func (r *mutationResolver) DeletePost(ctx context.Context, id string) (*model.Post, error) {
+	panic(fmt.Errorf("not implemented: DeletePost - deletePost"))
+}
+
+// Search is the resolver for the search field.
+func (r *queryResolver) Search(ctx context.Context, term string) ([]model.Node, error) {
+	panic(fmt.Errorf("not implemented: Search - search"))
+}
+
+// Feed is the resolver for the feed field.
+func (r *queryResolver) Feed(ctx context.Context, limit int, offset int) ([]*model.Post, error) {
+	panic(fmt.Errorf("not implemented: Feed - feed"))
+}
+
+// Classes is the resolver for the classes field.
+func (r *queryResolver) Classes(ctx context.Context) ([]*model.Class, error) {
+	panic(fmt.Errorf("not implemented: Classes - classes"))
+}
+
+// StudyGroups is the resolver for the studyGroups field.
+func (r *queryResolver) StudyGroups(ctx context.Context) ([]*model.StudyGroup, error) {
+	panic(fmt.Errorf("not implemented: StudyGroups - studyGroups"))
+}
+
+// Dms is the resolver for the dms field.
+func (r *queryResolver) Dms(ctx context.Context) ([]*model.DirectMessage, error) {
+	panic(fmt.Errorf("not implemented: Dms - dms"))
+}
+
+// FriendRequests is the resolver for the friendRequests field.
+func (r *queryResolver) FriendRequests(ctx context.Context) ([]*model.FriendRequest, error) {
+	panic(fmt.Errorf("not implemented: FriendRequests - friendRequests"))
+}
+
+// Friends is the resolver for the friends field.
+func (r *queryResolver) Friends(ctx context.Context) ([]*model.User, error) {
+	panic(fmt.Errorf("not implemented: Friends - friends"))
+}
 
 // Me is the resolver for the me field.
 func (r *queryResolver) Me(ctx context.Context) (*model.User, error) {
@@ -30,7 +126,11 @@ func (r *queryResolver) Me(ctx context.Context) (*model.User, error) {
 	}, nil
 }
 
+// Mutation returns MutationResolver implementation.
+func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
+
 // Query returns QueryResolver implementation.
 func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 
+type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }

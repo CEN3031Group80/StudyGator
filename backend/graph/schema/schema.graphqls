@@ -1,5 +1,59 @@
 type Query {
-  #node(id: ID!): Node
+  search(term: String!): [Node!]!
 
+  feed(limit: Int!, offset: Int!): [Post!]!
+  classes: [Class!]!
+  studyGroups: [StudyGroup!]!
+  dms: [DirectMessage!]!
+  friendRequests: [FriendRequest!]!
+  friends: [User!]!
   me: User!
 }
+
+type Mutation {
+  # FRIENDS
+
+  # Add a friend
+  addFriend(id: ID!): User!
+  # Accept someone else's friend request to you.
+  acceptFriendRequest(id: ID!): FriendRequest!
+  # Deny someone else's friend request to you.
+  declineFriendRequest(id: ID!): FriendRequest!
+  # Revoke YOUR OWN friend request.
+  revokeOutgoingFriendRequest(id: ID!): FriendRequest!
+
+  # DIRECT MESSAGE
+  
+  # Create a new DM chat with members of ids.
+  createDM(ids: [String!]!, name: String): DirectMessage!
+  # Send a message in a DM.
+  sendMessage(id: ID!): DirectMessagePost!
+
+  # STUDY GROUPS
+
+  # Create a new study group
+  createStudyGroup(classID: ID!, name: String!, description: String!): StudyGroup!
+  # Update a study group
+  updateStudyGroup(id: ID!, classID: ID!, name: String!, description: String!): StudyGroup!
+  # Delete a study group
+  deleteStudyGroup(id: ID!): StudyGroup!
+
+  # POSTS
+
+  # Create a new post in a study group
+  createPost(studyGroupID: ID!, name: String!, content: String!, uploads: [UploadWithMeta!]!): Post!
+
+  # Update a post.
+  updatePost(id: ID!, name: String!, content: String!): Post!
+
+  # Delete a post.
+  deletePost(id: ID!): Post!
+}
+
+input UploadWithMeta {
+  filename: String!
+  description: String
+  upload: Upload!
+}
+
+scalar Upload

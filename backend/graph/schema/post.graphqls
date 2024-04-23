@@ -1,3 +1,19 @@
 type Post implements Node {
     id: ID!
+    studyGroup: StudyGroup! 
+    poster: User!
+
+    name: String!
+    content: String!
+    attachments: [PostAttachment!]!
+}
+
+type PostAttachment implements Node {
+    id: ID!
+
+    # This is the identifier used to download from the server.
+    uploadUUID: String!
+
+    description: String
+    fileName: String!
 }

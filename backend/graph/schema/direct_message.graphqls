@@ -1,0 +1,15 @@
+type DirectMessage implements Node {
+    id: ID!
+    members: [User!]!
+    name: String
+
+    posts(limit: Int!, offset: Int!): [DirectMessagePost!]!
+}
+
+type DirectMessagePost implements Node {
+    id: ID!
+    directMessage: DirectMessage!
+    sender: User!
+
+    content: String!
+}

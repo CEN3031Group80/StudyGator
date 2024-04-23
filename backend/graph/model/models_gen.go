@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+
+	"github.com/99designs/gqlgen/graphql"
 )
 
 type Node interface {
@@ -19,26 +21,14 @@ type AuthInfo struct {
 	Email    string        `json:"email"`
 }
 
-type Class struct {
-	ID        string     `json:"id"`
-	ClassInfo *ClassInfo `json:"classInfo"`
-}
-
-func (Class) IsNode()            {}
-func (this Class) GetID() string { return this.ID }
-
 type ClassInfo struct {
-	UniversityID string `json:"universityID"`
-	Name         string `json:"name"`
-	Description  string `json:"description"`
+	UniversityName string `json:"university_name"`
+	Name           string `json:"name"`
+	Description    string `json:"description"`
 }
 
-type Post struct {
-	ID string `json:"id"`
+type Mutation struct {
 }
-
-func (Post) IsNode()            {}
-func (this Post) GetID() string { return this.ID }
 
 type Profile struct {
 	FirstName      string `json:"firstName"`
@@ -50,15 +40,11 @@ type Profile struct {
 type Query struct {
 }
 
-type User struct {
-	ID        string    `json:"id"`
-	AvatarURL string    `json:"avatarURL"`
-	AuthInfo  *AuthInfo `json:"authInfo"`
-	Profile   *Profile  `json:"profile,omitempty"`
+type UploadWithMeta struct {
+	Filename    string         `json:"filename"`
+	Description *string        `json:"description,omitempty"`
+	Upload      graphql.Upload `json:"upload"`
 }
-
-func (User) IsNode()            {}
-func (this User) GetID() string { return this.ID }
 
 type AuthProviders string
 
