@@ -1,12 +1,3 @@
 interface Node {
     id: ID!
 }
-type Group implements Node {
-    id: ID!
-    name: String!
-    members: [User!]!
-}
-input GroupInput {
-    id: ID!
-    name: String!
-}

@@ -3,13 +3,9 @@ type User implements Node {
     # General Info
     id: ID!
     avatarURL: String!
-    groups: [Group!]!
     # @adminOnly
     authInfo: AuthInfo!
     profile: Profile
-}
-input UserInput {
-    id: ID!
 }
 
 # This is the information returned by the auth service, for admins only.

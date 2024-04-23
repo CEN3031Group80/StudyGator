@@ -6,6 +6,10 @@ import (
 	"study-gator-backend/graph"
 	"study-gator-backend/graph/gqlcontext"
 	"time"
+	"context"
+	"io"
+	"path/filepath"
+	"fmt"
 
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
@@ -16,6 +20,9 @@ import (
 	"github.com/go-pkgz/auth/token"
 	"github.com/gorilla/websocket"
 	"github.com/rs/cors"
+	"github.com/99designs/gqlgen/graphql/handler/extension"
+	"github.com/99designs/gqlgen/graphql/handler/upload"
+
 )
 
 const defaultPort = "8080"
@@ -118,4 +125,49 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	// added under here (file upload)
+	r := chi.NewRouter()
+
+	srv := handler.NewDefaultServer(NewExecutableSchema(Config{Resolvers: &Resolver{}}))
+
+	srv.AddTransport(transport.Options{})
+	srv.AddTransport(transport.GET{})
+	srv.AddTransport(transport.POST{})
+	srv.AddTransport(upload.Transport{})
+
+	srv.Use(extension.Introspection{})
+
+	// Handle HTTP file upload requests
+	r.Post("/upload", func(w http.ResponseWriter, r *http.Request) {
+		r.ParseMultipartForm(10 << 20) // 10 MB limit
+		file, handler, err := r.FormFile("file")
+		if err != nil {
+			fmt.Println("Error Retrieving the File")
+			fmt.Println(err)
+			return
+		}
+		defer file.Close()
+		fmt.Printf("Uploaded File: %+v\n", handler.Filename)
+		fmt.Printf("File Size: %+v\n", handler.Size)
+		fmt.Printf("MIME Header: %+v\n", handler.Header)
+
+		// Save the file locally
+		f, err := os.OpenFile(filepath.Join("./uploads", handler.Filename), os.O_WRONLY|os.O_CREATE, 0666)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		defer f.Close()
+		io.Copy(f, file)
+
+		w.Write([]byte("Uploaded successfully\n"))
+	})
+
+	// Handle GraphQL requests
+	r.Handle("/", playground.Handler("GraphQL playground", "/query"))
+	r.Handle("/query", srv)
+
+	// Start HTTP server
+	http.ListenAndServe(":8080", r)
 }
