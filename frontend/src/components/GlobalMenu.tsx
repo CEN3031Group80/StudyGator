@@ -1,13 +1,13 @@
 import { gql, useQuery } from "@apollo/client";
-import { ChevronLeft, Menu, Notifications } from "@mui/icons-material";
-import { AppBar, Avatar, Badge, Box, Container, Divider, Drawer, Grid, IconButton, List, Paper, Toolbar, Typography } from "@mui/material";
+import { ChevronLeft, Menu } from "@mui/icons-material";
+import { AppBar, Avatar, Badge, Box, Container, Divider, Drawer, IconButton, List, Toolbar, Typography } from "@mui/material";
 import Copyright from "../components/Copyright";
 import { mainListItems, secondaryListItems } from "../components/Menu/listitems";
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
 
 const USER_QUERY = gql`
-query TestQuery {
+query UserQuery {
     me {
         avatarURL
         authInfo {
@@ -32,7 +32,6 @@ const GlobalMenu: React.FC = () => {
             <h1>{error.message}</h1>
         )
     }
-    console.log(data)
 
     return (
         <Box sx={{ display: 'flex' }}>

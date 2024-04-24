@@ -9,7 +9,7 @@ import (
 type Class struct {
 	gorm.Model
 	UniversityName string `json:"university_name"`
-	Name           string `json:"name"`
+	Name           string `json:"name" gorm:"index:idx_name,unique"`
 	Description    string `json:"description"`
 }
 

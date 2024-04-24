@@ -28,6 +28,24 @@ func InitDB() error {
 	DB.AutoMigrate(&User{})
 	DB.AutoMigrate(&StudyGroupMember{})
 
+	DB.Create(&Class{
+		UniversityName: "University of Florida",
+		Name:           "CEN3031",
+		Description:    "Intro to Software Engineering",
+	})
+
+	DB.Create(&Class{
+		UniversityName: "University of Florida",
+		Name:           "CDA4630",
+		Description:    "Embedded Systems",
+	})
+
+	DB.Create(&Class{
+		UniversityName: "University of Florida",
+		Name:           "MAS3114",
+		Description:    "Computational Linear Algebra",
+	})
+
 	return nil
 }
 

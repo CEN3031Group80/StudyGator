@@ -6,8 +6,11 @@ package graph
 
 import (
 	"context"
+	"errors"
 	"study-gator-backend/graph/gqlcontext"
 	"study-gator-backend/graph/model"
+
+	"gorm.io/gorm"
 )
 
 // ID is the resolver for the id field.
@@ -24,7 +27,7 @@ func (r *studyGroupResolver) Favorite(ctx context.Context, obj *model.StudyGroup
 
 	var member model.StudyGroupMember
 	tx := model.DB.First(&member, "user_id = ?", me.ID)
-	if tx.Error != nil {
+	if !errors.Is(tx.Error, gorm.ErrRecordNotFound) && tx.Error != nil {
 		return false, tx.Error
 	}
 

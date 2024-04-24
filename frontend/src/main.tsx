@@ -17,13 +17,13 @@ if (import.meta.env.DEV) {
   rootUrl = "http://localhost:5174"
 }
 
-let client = new ApolloClient({
+const client = new ApolloClient({
   uri: apiUrl + "/query",
   cache: new InMemoryCache(),
   credentials: "include"
 });
 
-let theme = createTheme();
+const theme = createTheme();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

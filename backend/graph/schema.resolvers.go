@@ -6,6 +6,7 @@ package graph
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -401,35 +402,24 @@ func (r *queryResolver) Feed(ctx context.Context, limit int, offset int) ([]*mod
 		return nil, err
 	}
 
-	var posts []model.Post
+	var posts []*model.Post
 	tx := model.DB.Limit(limit).Offset(offset).Joins("StudyGroupMember", model.DB.Where(&model.StudyGroupMember{UserID: int(me.ID)})).Joins("StudyGroup").Order("updated_at desc").Find(&posts)
 	if tx.Error != nil {
 		return nil, tx.Error
 	}
 
-	var postPointers []*model.Post
-	for _, post := range posts {
-		postPointers = append(postPointers, &post)
-
-	}
-
-	return postPointers, nil
+	return posts, nil
 }
 
 // Classes is the resolver for the classes field.
 func (r *queryResolver) Classes(ctx context.Context) ([]*model.Class, error) {
-	var classes []model.Class
+	var classes []*model.Class
 	tx := model.DB.Find(&classes)
 	if tx.Error != nil {
 		return nil, tx.Error
 	}
 
-	var classPointers []*model.Class
-	for _, class := range classes {
-		classPointers = append(classPointers, &class)
-	}
-
-	return classPointers, nil
+	return classes, nil
 }
 
 // StudyGroups is the resolver for the studyGroups field.
@@ -439,22 +429,31 @@ func (r *queryResolver) StudyGroups(ctx context.Context, onlyFavorites bool) ([]
 		return nil, err
 	}
 
-	var studyGroups []model.StudyGroup
+	var studyGroups []*model.StudyGroup
 	if onlyFavorites {
-		tx := model.DB.Joins("StudyGroupMember", model.DB.Where(&model.StudyGroupMember{UserID: int(me.ID)})).Find(&studyGroups, "favorite = ?", true)
-		if tx.Error != nil {
+		tx := model.DB.Joins("JOIN study_group_members ON study_group_members.study_group_id = study_groups.id AND study_group_members.user_id = ?", me.ID).Find(&studyGroups, "favorite = ?", true)
+		if !errors.Is(tx.Error, gorm.ErrRecordNotFound) && tx.Error != nil {
 			return nil, tx.Error
 		}
 	} else {
-		tx := model.DB.Joins("StudyGroupMember", model.DB.Where(&model.StudyGroupMember{UserID: int(me.ID)})).Find(&studyGroups)
-		if tx.Error != nil {
+		tx := model.DB.Joins("JOIN study_group_members ON study_group_members.study_group_id = study_groups.id AND study_group_members.user_id = ?", me.ID).Find(&studyGroups)
+		if !errors.Is(tx.Error, gorm.ErrRecordNotFound) && tx.Error != nil {
 			return nil, tx.Error
 		}
 	}
 
+	var ownStudyGroups []*model.StudyGroup
+	tx := model.DB.Find(&ownStudyGroups, "owner_id = ?", me.ID)
+	if !errors.Is(tx.Error, gorm.ErrRecordNotFound) && tx.Error != nil {
+		return nil, tx.Error
+	}
+
 	var studyGroupPointers []*model.StudyGroup
+	for _, studyGroup := range ownStudyGroups {
+		studyGroupPointers = append(studyGroupPointers, studyGroup)
+	}
 	for _, studyGroup := range studyGroups {
-		studyGroupPointers = append(studyGroupPointers, &studyGroup)
+		studyGroupPointers = append(studyGroupPointers, studyGroup)
 	}
 
 	return studyGroupPointers, nil
@@ -467,18 +466,13 @@ func (r *queryResolver) Dms(ctx context.Context) ([]*model.DirectMessage, error)
 		return nil, err
 	}
 
-	var dms []model.DirectMessage
+	var dms []*model.DirectMessage
 	tx := model.DB.Joins("DirectMessageMember", model.DB.Where(&model.DirectMessageMember{UserID: int(me.ID)})).Find(&dms)
 	if tx.Error != nil {
 		return nil, tx.Error
 	}
 
-	var dmPointers []*model.DirectMessage
-	for _, dm := range dms {
-		dmPointers = append(dmPointers, &dm)
-	}
-
-	return dmPointers, nil
+	return dms, nil
 }
 
 // FriendRequests is the resolver for the friendRequests field.
@@ -488,18 +482,13 @@ func (r *queryResolver) FriendRequests(ctx context.Context) ([]*model.FriendRequ
 		return nil, err
 	}
 
-	var frs []model.FriendRequest
+	var frs []*model.FriendRequest
 	tx := model.DB.Find(&frs, "receiver_id = ?", me.ID)
 	if tx.Error != nil {
 		return nil, tx.Error
 	}
 
-	var frsPointers []*model.FriendRequest
-	for _, fr := range frs {
-		frsPointers = append(frsPointers, &fr)
-	}
-
-	return frsPointers, nil
+	return frs, nil
 }
 
 // Friends is the resolver for the friends field.
@@ -509,18 +498,13 @@ func (r *queryResolver) Friends(ctx context.Context) ([]*model.User, error) {
 		return nil, err
 	}
 
-	var users []model.User
+	var users []*model.User
 	tx := model.DB.Joins("JOIN friend_requests ON friend_requests.sender_id = users.id OR friend_requests.receiver_id = users.id", me.ID, me.ID).Find(&users, "id = ?", me.ID)
 	if tx.Error != nil {
 		return nil, tx.Error
 	}
 
-	var userPointers []*model.User
-	for _, user := range users {
-		userPointers = append(userPointers, &user)
-	}
-
-	return userPointers, nil
+	return users, nil
 }
 
 // Me is the resolver for the me field.

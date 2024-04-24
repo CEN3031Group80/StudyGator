@@ -1,4 +1,4 @@
-import { Paper, Typography } from "@mui/material";
+import { Paper } from "@mui/material";
 import Feed from "../components/Feed";
 
 const Index: React.FC = () => {
