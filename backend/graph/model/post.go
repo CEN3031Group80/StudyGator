@@ -21,6 +21,8 @@ func (this Post) GetID() string { return fmt.Sprintf("post:%d", this.Model.ID) }
 
 type PostAttachment struct {
 	gorm.Model
+	PostID      int
+	Post        Post
 	UploadUUID  string `json:"uploadUUID"`
 	Description string `json:"description,omitempty"`
 	FileName    string `json:"fileName"`

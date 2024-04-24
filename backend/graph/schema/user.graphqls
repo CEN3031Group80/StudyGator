@@ -2,6 +2,8 @@
 type User implements Node {
     # General Info
     id: ID!
+    dateCreated: String!
+    dateUpdated: String!
     avatarURL: String!
     # @adminOnly
     authInfo: AuthInfo!
@@ -10,6 +12,7 @@ type User implements Node {
 
 type FriendRequest implements Node{
     id: ID!
+    dateCreated: String!
     sender: User!
     receiver: User!
     accepted: Boolean! 

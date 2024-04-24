@@ -3,10 +3,12 @@ type StudyGroup implements Node {
     owner: User!
     name: String!
     description: String!
+    favorite: Boolean!
 
     joinID: String! # A unique identifier used to join a Study Group.
 
     class: Class!
 
     posts(limit: Int!, offset: Int!): [Post!]!
+    members: [User!]!
 }

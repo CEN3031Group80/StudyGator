@@ -1,9 +1,10 @@
 import { Paper, Typography } from "@mui/material";
+import Feed from "../components/Feed";
 
 const Index: React.FC = () => {
     return (
         <Paper elevation={3}>
-            <Typography>Hello World</Typography>
+            <Feed></Feed>
         </Paper>
     )
 }

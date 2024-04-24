@@ -88,10 +88,11 @@ type ComplexityRoot struct {
 	}
 
 	FriendRequest struct {
-		Accepted func(childComplexity int) int
-		ID       func(childComplexity int) int
-		Receiver func(childComplexity int) int
-		Sender   func(childComplexity int) int
+		Accepted    func(childComplexity int) int
+		DateCreated func(childComplexity int) int
+		ID          func(childComplexity int) int
+		Receiver    func(childComplexity int) int
+		Sender      func(childComplexity int) int
 	}
 
 	Mutation struct {
@@ -106,12 +107,14 @@ type ComplexityRoot struct {
 		RevokeOutgoingFriendRequest func(childComplexity int, id string) int
 		SendMessage                 func(childComplexity int, id string, content string) int
 		UpdatePost                  func(childComplexity int, id string, name string, content string) int
-		UpdateStudyGroup            func(childComplexity int, id string, classID string, name string, description string) int
+		UpdateStudyGroup            func(childComplexity int, id string, classID string, name string, description string, favorite bool) int
 	}
 
 	Post struct {
 		Attachments func(childComplexity int) int
 		Content     func(childComplexity int) int
+		DateCreated func(childComplexity int) int
+		DateUpdated func(childComplexity int) int
 		ID          func(childComplexity int) int
 		Name        func(childComplexity int) int
 		Poster      func(childComplexity int) int
@@ -140,24 +143,33 @@ type ComplexityRoot struct {
 		Friends        func(childComplexity int) int
 		Me             func(childComplexity int) int
 		Search         func(childComplexity int, term string) int
-		StudyGroups    func(childComplexity int) int
+		StudyGroups    func(childComplexity int, onlyFavorites bool) int
+	}
+
+	SearchResult struct {
+		Node func(childComplexity int) int
+		Type func(childComplexity int) int
 	}
 
 	StudyGroup struct {
 		Class       func(childComplexity int) int
 		Description func(childComplexity int) int
+		Favorite    func(childComplexity int) int
 		ID          func(childComplexity int) int
 		JoinID      func(childComplexity int) int
+		Members     func(childComplexity int) int
 		Name        func(childComplexity int) int
 		Owner       func(childComplexity int) int
 		Posts       func(childComplexity int, limit int, offset int) int
 	}
 
 	User struct {
-		AuthInfo  func(childComplexity int) int
-		AvatarURL func(childComplexity int) int
-		ID        func(childComplexity int) int
-		Profile   func(childComplexity int) int
+		AuthInfo    func(childComplexity int) int
+		AvatarURL   func(childComplexity int) int
+		DateCreated func(childComplexity int) int
+		DateUpdated func(childComplexity int) int
+		ID          func(childComplexity int) int
+		Profile     func(childComplexity int) int
 	}
 }
 
@@ -179,6 +191,7 @@ type DirectMessagePostResolver interface {
 }
 type FriendRequestResolver interface {
 	ID(ctx context.Context, obj *model.FriendRequest) (string, error)
+	DateCreated(ctx context.Context, obj *model.FriendRequest) (string, error)
 }
 type MutationResolver interface {
 	AddFriend(ctx context.Context, id string) (*model.User, error)
@@ -188,7 +201,7 @@ type MutationResolver interface {
 	CreateDm(ctx context.Context, ids []string, name *string) (*model.DirectMessage, error)
 	SendMessage(ctx context.Context, id string, content string) (*model.DirectMessagePost, error)
 	CreateStudyGroup(ctx context.Context, classID string, name string, description string) (*model.StudyGroup, error)
-	UpdateStudyGroup(ctx context.Context, id string, classID string, name string, description string) (*model.StudyGroup, error)
+	UpdateStudyGroup(ctx context.Context, id string, classID string, name string, description string, favorite bool) (*model.StudyGroup, error)
 	DeleteStudyGroup(ctx context.Context, id string) (*model.StudyGroup, error)
 	CreatePost(ctx context.Context, studyGroupID string, name string, content string, uploads []*model.UploadWithMeta) (*model.Post, error)
 	UpdatePost(ctx context.Context, id string, name string, content string) (*model.Post, error)
@@ -196,6 +209,8 @@ type MutationResolver interface {
 }
 type PostResolver interface {
 	ID(ctx context.Context, obj *model.Post) (string, error)
+	DateCreated(ctx context.Context, obj *model.Post) (string, error)
+	DateUpdated(ctx context.Context, obj *model.Post) (string, error)
 
 	Attachments(ctx context.Context, obj *model.Post) ([]*model.PostAttachment, error)
 }
@@ -203,10 +218,10 @@ type PostAttachmentResolver interface {
 	ID(ctx context.Context, obj *model.PostAttachment) (string, error)
 }
 type QueryResolver interface {
-	Search(ctx context.Context, term string) ([]model.Node, error)
+	Search(ctx context.Context, term string) ([]*model.SearchResult, error)
 	Feed(ctx context.Context, limit int, offset int) ([]*model.Post, error)
 	Classes(ctx context.Context) ([]*model.Class, error)
-	StudyGroups(ctx context.Context) ([]*model.StudyGroup, error)
+	StudyGroups(ctx context.Context, onlyFavorites bool) ([]*model.StudyGroup, error)
 	Dms(ctx context.Context) ([]*model.DirectMessage, error)
 	FriendRequests(ctx context.Context) ([]*model.FriendRequest, error)
 	Friends(ctx context.Context) ([]*model.User, error)
@@ -215,10 +230,15 @@ type QueryResolver interface {
 type StudyGroupResolver interface {
 	ID(ctx context.Context, obj *model.StudyGroup) (string, error)
 
+	Favorite(ctx context.Context, obj *model.StudyGroup) (bool, error)
+
 	Posts(ctx context.Context, obj *model.StudyGroup, limit int, offset int) ([]*model.Post, error)
+	Members(ctx context.Context, obj *model.StudyGroup) ([]*model.User, error)
 }
 type UserResolver interface {
 	ID(ctx context.Context, obj *model.User) (string, error)
+	DateCreated(ctx context.Context, obj *model.User) (string, error)
+	DateUpdated(ctx context.Context, obj *model.User) (string, error)
 
 	AuthInfo(ctx context.Context, obj *model.User) (*model.AuthInfo, error)
 	Profile(ctx context.Context, obj *model.User) (*model.Profile, error)
@@ -373,6 +393,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.FriendRequest.Accepted(childComplexity), true
+
+	case "FriendRequest.dateCreated":
+		if e.complexity.FriendRequest.DateCreated == nil {
+			break
+		}
+
+		return e.complexity.FriendRequest.DateCreated(childComplexity), true
 
 	case "FriendRequest.id":
 		if e.complexity.FriendRequest.ID == nil {
@@ -537,7 +564,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.UpdateStudyGroup(childComplexity, args["id"].(string), args["classID"].(string), args["name"].(string), args["description"].(string)), true
+		return e.complexity.Mutation.UpdateStudyGroup(childComplexity, args["id"].(string), args["classID"].(string), args["name"].(string), args["description"].(string), args["favorite"].(bool)), true
 
 	case "Post.attachments":
 		if e.complexity.Post.Attachments == nil {
@@ -552,6 +579,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Post.Content(childComplexity), true
+
+	case "Post.dateCreated":
+		if e.complexity.Post.DateCreated == nil {
+			break
+		}
+
+		return e.complexity.Post.DateCreated(childComplexity), true
+
+	case "Post.dateUpdated":
+		if e.complexity.Post.DateUpdated == nil {
+			break
+		}
+
+		return e.complexity.Post.DateUpdated(childComplexity), true
 
 	case "Post.id":
 		if e.complexity.Post.ID == nil {
@@ -701,7 +742,26 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			break
 		}
 
-		return e.complexity.Query.StudyGroups(childComplexity), true
+		args, err := ec.field_Query_studyGroups_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.StudyGroups(childComplexity, args["onlyFavorites"].(bool)), true
+
+	case "SearchResult.node":
+		if e.complexity.SearchResult.Node == nil {
+			break
+		}
+
+		return e.complexity.SearchResult.Node(childComplexity), true
+
+	case "SearchResult.type":
+		if e.complexity.SearchResult.Type == nil {
+			break
+		}
+
+		return e.complexity.SearchResult.Type(childComplexity), true
 
 	case "StudyGroup.class":
 		if e.complexity.StudyGroup.Class == nil {
@@ -717,6 +777,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.StudyGroup.Description(childComplexity), true
 
+	case "StudyGroup.favorite":
+		if e.complexity.StudyGroup.Favorite == nil {
+			break
+		}
+
+		return e.complexity.StudyGroup.Favorite(childComplexity), true
+
 	case "StudyGroup.id":
 		if e.complexity.StudyGroup.ID == nil {
 			break
@@ -730,6 +797,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.StudyGroup.JoinID(childComplexity), true
+
+	case "StudyGroup.members":
+		if e.complexity.StudyGroup.Members == nil {
+			break
+		}
+
+		return e.complexity.StudyGroup.Members(childComplexity), true
 
 	case "StudyGroup.name":
 		if e.complexity.StudyGroup.Name == nil {
@@ -770,6 +844,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.User.AvatarURL(childComplexity), true
+
+	case "User.dateCreated":
+		if e.complexity.User.DateCreated == nil {
+			break
+		}
+
+		return e.complexity.User.DateCreated(childComplexity), true
+
+	case "User.dateUpdated":
+		if e.complexity.User.DateUpdated == nil {
+			break
+		}
+
+		return e.complexity.User.DateUpdated(childComplexity), true
 
 	case "User.id":
 		if e.complexity.User.ID == nil {
@@ -1225,6 +1313,15 @@ func (ec *executionContext) field_Mutation_updateStudyGroup_args(ctx context.Con
 		}
 	}
 	args["description"] = arg3
+	var arg4 bool
+	if tmp, ok := rawArgs["favorite"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("favorite"))
+		arg4, err = ec.unmarshalNBoolean2bool(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["favorite"] = arg4
 	return args, nil
 }
 
@@ -1279,6 +1376,21 @@ func (ec *executionContext) field_Query_search_args(ctx context.Context, rawArgs
 		}
 	}
 	args["term"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_studyGroups_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 bool
+	if tmp, ok := rawArgs["onlyFavorites"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("onlyFavorites"))
+		arg0, err = ec.unmarshalNBoolean2bool(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["onlyFavorites"] = arg0
 	return args, nil
 }
 
@@ -1619,12 +1731,16 @@ func (ec *executionContext) fieldContext_Class_studyGroups(ctx context.Context, 
 				return ec.fieldContext_StudyGroup_name(ctx, field)
 			case "description":
 				return ec.fieldContext_StudyGroup_description(ctx, field)
+			case "favorite":
+				return ec.fieldContext_StudyGroup_favorite(ctx, field)
 			case "joinID":
 				return ec.fieldContext_StudyGroup_joinID(ctx, field)
 			case "class":
 				return ec.fieldContext_StudyGroup_class(ctx, field)
 			case "posts":
 				return ec.fieldContext_StudyGroup_posts(ctx, field)
+			case "members":
+				return ec.fieldContext_StudyGroup_members(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type StudyGroup", field.Name)
 		},
@@ -1849,6 +1965,10 @@ func (ec *executionContext) fieldContext_DirectMessage_members(ctx context.Conte
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_User_id(ctx, field)
+			case "dateCreated":
+				return ec.fieldContext_User_dateCreated(ctx, field)
+			case "dateUpdated":
+				return ec.fieldContext_User_dateUpdated(ctx, field)
 			case "avatarURL":
 				return ec.fieldContext_User_avatarURL(ctx, field)
 			case "authInfo":
@@ -2107,6 +2227,10 @@ func (ec *executionContext) fieldContext_DirectMessagePost_sender(ctx context.Co
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_User_id(ctx, field)
+			case "dateCreated":
+				return ec.fieldContext_User_dateCreated(ctx, field)
+			case "dateUpdated":
+				return ec.fieldContext_User_dateUpdated(ctx, field)
 			case "avatarURL":
 				return ec.fieldContext_User_avatarURL(ctx, field)
 			case "authInfo":
@@ -2208,6 +2332,50 @@ func (ec *executionContext) fieldContext_FriendRequest_id(ctx context.Context, f
 	return fc, nil
 }
 
+func (ec *executionContext) _FriendRequest_dateCreated(ctx context.Context, field graphql.CollectedField, obj *model.FriendRequest) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FriendRequest_dateCreated(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.FriendRequest().DateCreated(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FriendRequest_dateCreated(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FriendRequest",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _FriendRequest_sender(ctx context.Context, field graphql.CollectedField, obj *model.FriendRequest) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_FriendRequest_sender(ctx, field)
 	if err != nil {
@@ -2249,6 +2417,10 @@ func (ec *executionContext) fieldContext_FriendRequest_sender(ctx context.Contex
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_User_id(ctx, field)
+			case "dateCreated":
+				return ec.fieldContext_User_dateCreated(ctx, field)
+			case "dateUpdated":
+				return ec.fieldContext_User_dateUpdated(ctx, field)
 			case "avatarURL":
 				return ec.fieldContext_User_avatarURL(ctx, field)
 			case "authInfo":
@@ -2303,6 +2475,10 @@ func (ec *executionContext) fieldContext_FriendRequest_receiver(ctx context.Cont
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_User_id(ctx, field)
+			case "dateCreated":
+				return ec.fieldContext_User_dateCreated(ctx, field)
+			case "dateUpdated":
+				return ec.fieldContext_User_dateUpdated(ctx, field)
 			case "avatarURL":
 				return ec.fieldContext_User_avatarURL(ctx, field)
 			case "authInfo":
@@ -2401,6 +2577,10 @@ func (ec *executionContext) fieldContext_Mutation_addFriend(ctx context.Context,
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_User_id(ctx, field)
+			case "dateCreated":
+				return ec.fieldContext_User_dateCreated(ctx, field)
+			case "dateUpdated":
+				return ec.fieldContext_User_dateUpdated(ctx, field)
 			case "avatarURL":
 				return ec.fieldContext_User_avatarURL(ctx, field)
 			case "authInfo":
@@ -2466,6 +2646,8 @@ func (ec *executionContext) fieldContext_Mutation_acceptFriendRequest(ctx contex
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_FriendRequest_id(ctx, field)
+			case "dateCreated":
+				return ec.fieldContext_FriendRequest_dateCreated(ctx, field)
 			case "sender":
 				return ec.fieldContext_FriendRequest_sender(ctx, field)
 			case "receiver":
@@ -2531,6 +2713,8 @@ func (ec *executionContext) fieldContext_Mutation_declineFriendRequest(ctx conte
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_FriendRequest_id(ctx, field)
+			case "dateCreated":
+				return ec.fieldContext_FriendRequest_dateCreated(ctx, field)
 			case "sender":
 				return ec.fieldContext_FriendRequest_sender(ctx, field)
 			case "receiver":
@@ -2596,6 +2780,8 @@ func (ec *executionContext) fieldContext_Mutation_revokeOutgoingFriendRequest(ct
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_FriendRequest_id(ctx, field)
+			case "dateCreated":
+				return ec.fieldContext_FriendRequest_dateCreated(ctx, field)
 			case "sender":
 				return ec.fieldContext_FriendRequest_sender(ctx, field)
 			case "receiver":
@@ -2797,12 +2983,16 @@ func (ec *executionContext) fieldContext_Mutation_createStudyGroup(ctx context.C
 				return ec.fieldContext_StudyGroup_name(ctx, field)
 			case "description":
 				return ec.fieldContext_StudyGroup_description(ctx, field)
+			case "favorite":
+				return ec.fieldContext_StudyGroup_favorite(ctx, field)
 			case "joinID":
 				return ec.fieldContext_StudyGroup_joinID(ctx, field)
 			case "class":
 				return ec.fieldContext_StudyGroup_class(ctx, field)
 			case "posts":
 				return ec.fieldContext_StudyGroup_posts(ctx, field)
+			case "members":
+				return ec.fieldContext_StudyGroup_members(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type StudyGroup", field.Name)
 		},
@@ -2835,7 +3025,7 @@ func (ec *executionContext) _Mutation_updateStudyGroup(ctx context.Context, fiel
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().UpdateStudyGroup(rctx, fc.Args["id"].(string), fc.Args["classID"].(string), fc.Args["name"].(string), fc.Args["description"].(string))
+		return ec.resolvers.Mutation().UpdateStudyGroup(rctx, fc.Args["id"].(string), fc.Args["classID"].(string), fc.Args["name"].(string), fc.Args["description"].(string), fc.Args["favorite"].(bool))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2868,12 +3058,16 @@ func (ec *executionContext) fieldContext_Mutation_updateStudyGroup(ctx context.C
 				return ec.fieldContext_StudyGroup_name(ctx, field)
 			case "description":
 				return ec.fieldContext_StudyGroup_description(ctx, field)
+			case "favorite":
+				return ec.fieldContext_StudyGroup_favorite(ctx, field)
 			case "joinID":
 				return ec.fieldContext_StudyGroup_joinID(ctx, field)
 			case "class":
 				return ec.fieldContext_StudyGroup_class(ctx, field)
 			case "posts":
 				return ec.fieldContext_StudyGroup_posts(ctx, field)
+			case "members":
+				return ec.fieldContext_StudyGroup_members(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type StudyGroup", field.Name)
 		},
@@ -2939,12 +3133,16 @@ func (ec *executionContext) fieldContext_Mutation_deleteStudyGroup(ctx context.C
 				return ec.fieldContext_StudyGroup_name(ctx, field)
 			case "description":
 				return ec.fieldContext_StudyGroup_description(ctx, field)
+			case "favorite":
+				return ec.fieldContext_StudyGroup_favorite(ctx, field)
 			case "joinID":
 				return ec.fieldContext_StudyGroup_joinID(ctx, field)
 			case "class":
 				return ec.fieldContext_StudyGroup_class(ctx, field)
 			case "posts":
 				return ec.fieldContext_StudyGroup_posts(ctx, field)
+			case "members":
+				return ec.fieldContext_StudyGroup_members(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type StudyGroup", field.Name)
 		},
@@ -3004,6 +3202,10 @@ func (ec *executionContext) fieldContext_Mutation_createPost(ctx context.Context
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_Post_id(ctx, field)
+			case "dateCreated":
+				return ec.fieldContext_Post_dateCreated(ctx, field)
+			case "dateUpdated":
+				return ec.fieldContext_Post_dateUpdated(ctx, field)
 			case "studyGroup":
 				return ec.fieldContext_Post_studyGroup(ctx, field)
 			case "poster":
@@ -3073,6 +3275,10 @@ func (ec *executionContext) fieldContext_Mutation_updatePost(ctx context.Context
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_Post_id(ctx, field)
+			case "dateCreated":
+				return ec.fieldContext_Post_dateCreated(ctx, field)
+			case "dateUpdated":
+				return ec.fieldContext_Post_dateUpdated(ctx, field)
 			case "studyGroup":
 				return ec.fieldContext_Post_studyGroup(ctx, field)
 			case "poster":
@@ -3142,6 +3348,10 @@ func (ec *executionContext) fieldContext_Mutation_deletePost(ctx context.Context
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_Post_id(ctx, field)
+			case "dateCreated":
+				return ec.fieldContext_Post_dateCreated(ctx, field)
+			case "dateUpdated":
+				return ec.fieldContext_Post_dateUpdated(ctx, field)
 			case "studyGroup":
 				return ec.fieldContext_Post_studyGroup(ctx, field)
 			case "poster":
@@ -3214,6 +3424,94 @@ func (ec *executionContext) fieldContext_Post_id(ctx context.Context, field grap
 	return fc, nil
 }
 
+func (ec *executionContext) _Post_dateCreated(ctx context.Context, field graphql.CollectedField, obj *model.Post) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Post_dateCreated(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Post().DateCreated(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Post_dateCreated(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Post",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Post_dateUpdated(ctx context.Context, field graphql.CollectedField, obj *model.Post) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Post_dateUpdated(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Post().DateUpdated(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Post_dateUpdated(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Post",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Post_studyGroup(ctx context.Context, field graphql.CollectedField, obj *model.Post) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Post_studyGroup(ctx, field)
 	if err != nil {
@@ -3261,12 +3559,16 @@ func (ec *executionContext) fieldContext_Post_studyGroup(ctx context.Context, fi
 				return ec.fieldContext_StudyGroup_name(ctx, field)
 			case "description":
 				return ec.fieldContext_StudyGroup_description(ctx, field)
+			case "favorite":
+				return ec.fieldContext_StudyGroup_favorite(ctx, field)
 			case "joinID":
 				return ec.fieldContext_StudyGroup_joinID(ctx, field)
 			case "class":
 				return ec.fieldContext_StudyGroup_class(ctx, field)
 			case "posts":
 				return ec.fieldContext_StudyGroup_posts(ctx, field)
+			case "members":
+				return ec.fieldContext_StudyGroup_members(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type StudyGroup", field.Name)
 		},
@@ -3315,6 +3617,10 @@ func (ec *executionContext) fieldContext_Post_poster(ctx context.Context, field 
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_User_id(ctx, field)
+			case "dateCreated":
+				return ec.fieldContext_User_dateCreated(ctx, field)
+			case "dateUpdated":
+				return ec.fieldContext_User_dateUpdated(ctx, field)
 			case "avatarURL":
 				return ec.fieldContext_User_avatarURL(ctx, field)
 			case "authInfo":
@@ -3845,9 +4151,9 @@ func (ec *executionContext) _Query_search(ctx context.Context, field graphql.Col
 		}
 		return graphql.Null
 	}
-	res := resTmp.([]model.Node)
+	res := resTmp.([]*model.SearchResult)
 	fc.Result = res
-	return ec.marshalNNode2ᚕstudyᚑgatorᚑbackendᚋgraphᚋmodelᚐNodeᚄ(ctx, field.Selections, res)
+	return ec.marshalNSearchResult2ᚕᚖstudyᚑgatorᚑbackendᚋgraphᚋmodelᚐSearchResultᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Query_search(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -3857,7 +4163,13 @@ func (ec *executionContext) fieldContext_Query_search(ctx context.Context, field
 		IsMethod:   true,
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("FieldContext.Child cannot be called on type INTERFACE")
+			switch field.Name {
+			case "type":
+				return ec.fieldContext_SearchResult_type(ctx, field)
+			case "node":
+				return ec.fieldContext_SearchResult_node(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type SearchResult", field.Name)
 		},
 	}
 	defer func() {
@@ -3915,6 +4227,10 @@ func (ec *executionContext) fieldContext_Query_feed(ctx context.Context, field g
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_Post_id(ctx, field)
+			case "dateCreated":
+				return ec.fieldContext_Post_dateCreated(ctx, field)
+			case "dateUpdated":
+				return ec.fieldContext_Post_dateUpdated(ctx, field)
 			case "studyGroup":
 				return ec.fieldContext_Post_studyGroup(ctx, field)
 			case "poster":
@@ -4009,7 +4325,7 @@ func (ec *executionContext) _Query_studyGroups(ctx context.Context, field graphq
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().StudyGroups(rctx)
+		return ec.resolvers.Query().StudyGroups(rctx, fc.Args["onlyFavorites"].(bool))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -4042,15 +4358,30 @@ func (ec *executionContext) fieldContext_Query_studyGroups(ctx context.Context, 
 				return ec.fieldContext_StudyGroup_name(ctx, field)
 			case "description":
 				return ec.fieldContext_StudyGroup_description(ctx, field)
+			case "favorite":
+				return ec.fieldContext_StudyGroup_favorite(ctx, field)
 			case "joinID":
 				return ec.fieldContext_StudyGroup_joinID(ctx, field)
 			case "class":
 				return ec.fieldContext_StudyGroup_class(ctx, field)
 			case "posts":
 				return ec.fieldContext_StudyGroup_posts(ctx, field)
+			case "members":
+				return ec.fieldContext_StudyGroup_members(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type StudyGroup", field.Name)
 		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_studyGroups_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -4150,6 +4481,8 @@ func (ec *executionContext) fieldContext_Query_friendRequests(ctx context.Contex
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_FriendRequest_id(ctx, field)
+			case "dateCreated":
+				return ec.fieldContext_FriendRequest_dateCreated(ctx, field)
 			case "sender":
 				return ec.fieldContext_FriendRequest_sender(ctx, field)
 			case "receiver":
@@ -4204,6 +4537,10 @@ func (ec *executionContext) fieldContext_Query_friends(ctx context.Context, fiel
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_User_id(ctx, field)
+			case "dateCreated":
+				return ec.fieldContext_User_dateCreated(ctx, field)
+			case "dateUpdated":
+				return ec.fieldContext_User_dateUpdated(ctx, field)
 			case "avatarURL":
 				return ec.fieldContext_User_avatarURL(ctx, field)
 			case "authInfo":
@@ -4258,6 +4595,10 @@ func (ec *executionContext) fieldContext_Query_me(ctx context.Context, field gra
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_User_id(ctx, field)
+			case "dateCreated":
+				return ec.fieldContext_User_dateCreated(ctx, field)
+			case "dateUpdated":
+				return ec.fieldContext_User_dateUpdated(ctx, field)
 			case "avatarURL":
 				return ec.fieldContext_User_avatarURL(ctx, field)
 			case "authInfo":
@@ -4400,6 +4741,94 @@ func (ec *executionContext) fieldContext_Query___schema(ctx context.Context, fie
 	return fc, nil
 }
 
+func (ec *executionContext) _SearchResult_type(ctx context.Context, field graphql.CollectedField, obj *model.SearchResult) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SearchResult_type(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Type, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(model.SearchResultType)
+	fc.Result = res
+	return ec.marshalNSearchResultType2studyᚑgatorᚑbackendᚋgraphᚋmodelᚐSearchResultType(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SearchResult_type(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SearchResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type SearchResultType does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SearchResult_node(ctx context.Context, field graphql.CollectedField, obj *model.SearchResult) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SearchResult_node(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Node, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(model.Node)
+	fc.Result = res
+	return ec.marshalNNode2studyᚑgatorᚑbackendᚋgraphᚋmodelᚐNode(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SearchResult_node(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SearchResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("FieldContext.Child cannot be called on type INTERFACE")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _StudyGroup_id(ctx context.Context, field graphql.CollectedField, obj *model.StudyGroup) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_StudyGroup_id(ctx, field)
 	if err != nil {
@@ -4485,6 +4914,10 @@ func (ec *executionContext) fieldContext_StudyGroup_owner(ctx context.Context, f
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_User_id(ctx, field)
+			case "dateCreated":
+				return ec.fieldContext_User_dateCreated(ctx, field)
+			case "dateUpdated":
+				return ec.fieldContext_User_dateUpdated(ctx, field)
 			case "avatarURL":
 				return ec.fieldContext_User_avatarURL(ctx, field)
 			case "authInfo":
@@ -4581,6 +5014,50 @@ func (ec *executionContext) fieldContext_StudyGroup_description(ctx context.Cont
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _StudyGroup_favorite(ctx context.Context, field graphql.CollectedField, obj *model.StudyGroup) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_StudyGroup_favorite(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.StudyGroup().Favorite(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_StudyGroup_favorite(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "StudyGroup",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
 		},
 	}
 	return fc, nil
@@ -4723,6 +5200,10 @@ func (ec *executionContext) fieldContext_StudyGroup_posts(ctx context.Context, f
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_Post_id(ctx, field)
+			case "dateCreated":
+				return ec.fieldContext_Post_dateCreated(ctx, field)
+			case "dateUpdated":
+				return ec.fieldContext_Post_dateUpdated(ctx, field)
 			case "studyGroup":
 				return ec.fieldContext_Post_studyGroup(ctx, field)
 			case "poster":
@@ -4747,6 +5228,64 @@ func (ec *executionContext) fieldContext_StudyGroup_posts(ctx context.Context, f
 	if fc.Args, err = ec.field_StudyGroup_posts_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _StudyGroup_members(ctx context.Context, field graphql.CollectedField, obj *model.StudyGroup) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_StudyGroup_members(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.StudyGroup().Members(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.User)
+	fc.Result = res
+	return ec.marshalNUser2ᚕᚖstudyᚑgatorᚑbackendᚋgraphᚋmodelᚐUserᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_StudyGroup_members(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "StudyGroup",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_User_id(ctx, field)
+			case "dateCreated":
+				return ec.fieldContext_User_dateCreated(ctx, field)
+			case "dateUpdated":
+				return ec.fieldContext_User_dateUpdated(ctx, field)
+			case "avatarURL":
+				return ec.fieldContext_User_avatarURL(ctx, field)
+			case "authInfo":
+				return ec.fieldContext_User_authInfo(ctx, field)
+			case "profile":
+				return ec.fieldContext_User_profile(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+		},
 	}
 	return fc, nil
 }
@@ -4790,6 +5329,94 @@ func (ec *executionContext) fieldContext_User_id(ctx context.Context, field grap
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _User_dateCreated(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_User_dateCreated(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.User().DateCreated(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_User_dateCreated(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _User_dateUpdated(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_User_dateUpdated(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.User().DateUpdated(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_User_dateUpdated(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -7376,6 +8003,42 @@ func (ec *executionContext) _FriendRequest(ctx context.Context, sel ast.Selectio
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "dateCreated":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._FriendRequest_dateCreated(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "sender":
 			out.Values[i] = ec._FriendRequest_sender(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -7561,6 +8224,78 @@ func (ec *executionContext) _Post(ctx context.Context, sel ast.SelectionSet, obj
 					}
 				}()
 				res = ec._Post_id(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "dateCreated":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Post_dateCreated(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "dateUpdated":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Post_dateUpdated(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -8028,6 +8763,50 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 	return out
 }
 
+var searchResultImplementors = []string{"SearchResult"}
+
+func (ec *executionContext) _SearchResult(ctx context.Context, sel ast.SelectionSet, obj *model.SearchResult) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, searchResultImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("SearchResult")
+		case "type":
+			out.Values[i] = ec._SearchResult_type(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "node":
+			out.Values[i] = ec._SearchResult_node(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var studyGroupImplementors = []string{"StudyGroup", "Node"}
 
 func (ec *executionContext) _StudyGroup(ctx context.Context, sel ast.SelectionSet, obj *model.StudyGroup) graphql.Marshaler {
@@ -8090,6 +8869,42 @@ func (ec *executionContext) _StudyGroup(ctx context.Context, sel ast.SelectionSe
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "favorite":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._StudyGroup_favorite(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "joinID":
 			out.Values[i] = ec._StudyGroup_joinID(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -8110,6 +8925,42 @@ func (ec *executionContext) _StudyGroup(ctx context.Context, sel ast.SelectionSe
 					}
 				}()
 				res = ec._StudyGroup_posts(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "members":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._StudyGroup_members(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -8180,6 +9031,78 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 					}
 				}()
 				res = ec._User_id(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "dateCreated":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._User_dateCreated(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "dateUpdated":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._User_dateUpdated(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -8954,50 +9877,6 @@ func (ec *executionContext) marshalNNode2studyᚑgatorᚑbackendᚋgraphᚋmodel
 	return ec._Node(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNNode2ᚕstudyᚑgatorᚑbackendᚋgraphᚋmodelᚐNodeᚄ(ctx context.Context, sel ast.SelectionSet, v []model.Node) graphql.Marshaler {
-	ret := make(graphql.Array, len(v))
-	var wg sync.WaitGroup
-	isLen1 := len(v) == 1
-	if !isLen1 {
-		wg.Add(len(v))
-	}
-	for i := range v {
-		i := i
-		fc := &graphql.FieldContext{
-			Index:  &i,
-			Result: &v[i],
-		}
-		ctx := graphql.WithFieldContext(ctx, fc)
-		f := func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					ec.Error(ctx, ec.Recover(ctx, r))
-					ret = nil
-				}
-			}()
-			if !isLen1 {
-				defer wg.Done()
-			}
-			ret[i] = ec.marshalNNode2studyᚑgatorᚑbackendᚋgraphᚋmodelᚐNode(ctx, sel, v[i])
-		}
-		if isLen1 {
-			f(i)
-		} else {
-			go f(i)
-		}
-
-	}
-	wg.Wait()
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
-}
-
 func (ec *executionContext) marshalNPost2studyᚑgatorᚑbackendᚋgraphᚋmodelᚐPost(ctx context.Context, sel ast.SelectionSet, v model.Post) graphql.Marshaler {
 	return ec._Post(ctx, sel, &v)
 }
@@ -9108,6 +9987,70 @@ func (ec *executionContext) marshalNPostAttachment2ᚖstudyᚑgatorᚑbackendᚋ
 		return graphql.Null
 	}
 	return ec._PostAttachment(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNSearchResult2ᚕᚖstudyᚑgatorᚑbackendᚋgraphᚋmodelᚐSearchResultᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.SearchResult) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNSearchResult2ᚖstudyᚑgatorᚑbackendᚋgraphᚋmodelᚐSearchResult(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNSearchResult2ᚖstudyᚑgatorᚑbackendᚋgraphᚋmodelᚐSearchResult(ctx context.Context, sel ast.SelectionSet, v *model.SearchResult) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._SearchResult(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNSearchResultType2studyᚑgatorᚑbackendᚋgraphᚋmodelᚐSearchResultType(ctx context.Context, v interface{}) (model.SearchResultType, error) {
+	var res model.SearchResultType
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNSearchResultType2studyᚑgatorᚑbackendᚋgraphᚋmodelᚐSearchResultType(ctx context.Context, sel ast.SelectionSet, v model.SearchResultType) graphql.Marshaler {
+	return v
 }
 
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v interface{}) (string, error) {

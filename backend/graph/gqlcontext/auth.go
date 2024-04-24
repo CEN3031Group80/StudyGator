@@ -3,8 +3,10 @@ package gqlcontext
 import (
 	"context"
 	"net/http"
+	"study-gator-backend/graph/model"
 
 	"github.com/go-pkgz/auth/token"
+	"gorm.io/gorm"
 )
 
 // A private key for context that only this package can access. This is important
@@ -37,7 +39,26 @@ func AuthMiddleware() func(http.Handler) http.Handler {
 }
 
 // ForContext finds the user from the context. REQUIRES Middleware to have run.
-func UserFromContext(ctx context.Context) token.User {
+func UserFromContext(ctx context.Context) (*model.User, error) {
 	raw, _ := ctx.Value(userCtxKey).(token.User)
-	return raw
+
+	var me model.User
+	tx := model.DB.First(&me, "alt_id = ?", raw.ID)
+	if tx.Error != nil {
+		if tx.Error == gorm.ErrRecordNotFound {
+			me.AvatarURL = raw.Picture
+			me.Email = raw.Email
+			me.Name = raw.Name
+			me.AltID = raw.ID
+			me.Provider = model.AuthProvidersGithub
+			tx = model.DB.Create(&me)
+			if tx.Error != nil {
+				return nil, tx.Error
+			}
+			return &me, nil
+		}
+		return nil, tx.Error
+	}
+
+	return &me, nil
 }

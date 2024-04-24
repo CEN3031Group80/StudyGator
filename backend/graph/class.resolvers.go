@@ -6,23 +6,44 @@ package graph
 
 import (
 	"context"
-	"fmt"
+	"study-gator-backend/graph/gqlcontext"
 	"study-gator-backend/graph/model"
 )
 
 // ID is the resolver for the id field.
 func (r *classResolver) ID(ctx context.Context, obj *model.Class) (string, error) {
-	panic(fmt.Errorf("not implemented: ID - id"))
+	return obj.GetID(), nil
 }
 
 // ClassInfo is the resolver for the classInfo field.
 func (r *classResolver) ClassInfo(ctx context.Context, obj *model.Class) (*model.ClassInfo, error) {
-	panic(fmt.Errorf("not implemented: ClassInfo - classInfo"))
+	return &model.ClassInfo{
+		UniversityName: obj.UniversityName,
+		Name:           obj.Name,
+		Description:    obj.Description,
+	}, nil
 }
 
 // StudyGroups is the resolver for the studyGroups field.
 func (r *classResolver) StudyGroups(ctx context.Context, obj *model.Class) ([]*model.StudyGroup, error) {
-	panic(fmt.Errorf("not implemented: StudyGroups - studyGroups"))
+	me, err := gqlcontext.UserFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var studyGroups []model.StudyGroup
+
+	tx := model.DB.Joins("StudyGroupMember", model.DB.Where(&model.StudyGroupMember{UserID: int(me.ID)})).Find(&studyGroups, "class_id = ?", obj.ID)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	var studyGroupPointers []*model.StudyGroup
+	for _, studyGroup := range studyGroups {
+		studyGroupPointers = append(studyGroupPointers, &studyGroup)
+	}
+
+	return studyGroupPointers, nil
 }
 
 // Class returns ClassResolver implementation.

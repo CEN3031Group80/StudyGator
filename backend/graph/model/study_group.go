@@ -19,3 +19,12 @@ type StudyGroup struct {
 
 func (StudyGroup) IsNode()            {}
 func (this StudyGroup) GetID() string { return fmt.Sprintf("user:%d", this.Model.ID) }
+
+type StudyGroupMember struct {
+	gorm.Model
+	Favorite     bool
+	StudyGroupID int
+	StudyGroup   StudyGroup
+	UserID       int
+	User         User
+}

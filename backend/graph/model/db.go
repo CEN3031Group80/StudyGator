@@ -4,8 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"gorm.io/driver/sqlite" // Sqlite driver based on CGO
-	// "github.com/glebarez/sqlite" // Pure go SQLite driver, checkout https://github.com/glebarez/sqlite for details
+	"github.com/glebarez/sqlite" // Pure go SQLite driver, checkout https://github.com/glebarez/sqlite for details
 	"gorm.io/gorm"
 )
 
@@ -27,6 +26,7 @@ func InitDB() error {
 	DB.AutoMigrate(&StudyGroup{})
 	DB.AutoMigrate(&FriendRequest{})
 	DB.AutoMigrate(&User{})
+	DB.AutoMigrate(&StudyGroupMember{})
 
 	return nil
 }

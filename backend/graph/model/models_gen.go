@@ -40,6 +40,11 @@ type Profile struct {
 type Query struct {
 }
 
+type SearchResult struct {
+	Type SearchResultType `json:"type"`
+	Node Node             `json:"node"`
+}
+
 type UploadWithMeta struct {
 	Filename    string         `json:"filename"`
 	Description *string        `json:"description,omitempty"`
@@ -86,5 +91,48 @@ func (e *AuthProviders) UnmarshalGQL(v interface{}) error {
 }
 
 func (e AuthProviders) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type SearchResultType string
+
+const (
+	SearchResultTypeUser       SearchResultType = "USER"
+	SearchResultTypeClass      SearchResultType = "CLASS"
+	SearchResultTypeStudygroup SearchResultType = "STUDYGROUP"
+)
+
+var AllSearchResultType = []SearchResultType{
+	SearchResultTypeUser,
+	SearchResultTypeClass,
+	SearchResultTypeStudygroup,
+}
+
+func (e SearchResultType) IsValid() bool {
+	switch e {
+	case SearchResultTypeUser, SearchResultTypeClass, SearchResultTypeStudygroup:
+		return true
+	}
+	return false
+}
+
+func (e SearchResultType) String() string {
+	return string(e)
+}
+
+func (e *SearchResultType) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = SearchResultType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid SearchResultType", str)
+	}
+	return nil
+}
+
+func (e SearchResultType) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }

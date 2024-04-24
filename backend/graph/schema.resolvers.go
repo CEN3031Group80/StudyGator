@@ -7,6 +7,8 @@ package graph
 import (
 	"context"
 	"fmt"
+	"io"
+	"os"
 	"study-gator-backend/graph/gqlcontext"
 	"study-gator-backend/graph/model"
 
@@ -15,15 +17,13 @@ import (
 
 // AddFriend is the resolver for the addFriend field.
 func (r *mutationResolver) AddFriend(ctx context.Context, id string) (*model.User, error) {
-	user := gqlcontext.UserFromContext(ctx)
-	var me model.User
-	tx := model.DB.First(&me, "AltID = ?", user.ID)
-	if tx.Error != nil {
-		return nil, tx.Error
+	me, err := gqlcontext.UserFromContext(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	var target model.User
-	tx = model.DB.First(&target, model.StringIDToIntID(id))
+	tx := model.DB.First(&target, model.StringIDToIntID(id))
 	if tx.Error != nil {
 		return nil, tx.Error
 	}
@@ -42,15 +42,13 @@ func (r *mutationResolver) AddFriend(ctx context.Context, id string) (*model.Use
 
 // AcceptFriendRequest is the resolver for the acceptFriendRequest field.
 func (r *mutationResolver) AcceptFriendRequest(ctx context.Context, id string) (*model.FriendRequest, error) {
-	user := gqlcontext.UserFromContext(ctx)
-	var me model.User
-	tx := model.DB.First(&me, "AltID = ?", user.ID)
-	if tx.Error != nil {
-		return nil, tx.Error
+	me, err := gqlcontext.UserFromContext(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	var fr model.FriendRequest
-	tx = model.DB.First(&fr, model.StringIDToIntID(id))
+	tx := model.DB.First(&fr, model.StringIDToIntID(id))
 	if tx.Error != nil {
 		return nil, tx.Error
 	}
@@ -71,15 +69,13 @@ func (r *mutationResolver) AcceptFriendRequest(ctx context.Context, id string) (
 
 // DeclineFriendRequest is the resolver for the declineFriendRequest field.
 func (r *mutationResolver) DeclineFriendRequest(ctx context.Context, id string) (*model.FriendRequest, error) {
-	user := gqlcontext.UserFromContext(ctx)
-	var me model.User
-	tx := model.DB.First(&me, "AltID = ?", user.ID)
-	if tx.Error != nil {
-		return nil, tx.Error
+	me, err := gqlcontext.UserFromContext(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	var fr model.FriendRequest
-	tx = model.DB.First(&fr, model.StringIDToIntID(id))
+	tx := model.DB.First(&fr, model.StringIDToIntID(id))
 	if tx.Error != nil {
 		return nil, tx.Error
 	}
@@ -98,15 +94,13 @@ func (r *mutationResolver) DeclineFriendRequest(ctx context.Context, id string) 
 
 // RevokeOutgoingFriendRequest is the resolver for the revokeOutgoingFriendRequest field.
 func (r *mutationResolver) RevokeOutgoingFriendRequest(ctx context.Context, id string) (*model.FriendRequest, error) {
-	user := gqlcontext.UserFromContext(ctx)
-	var me model.User
-	tx := model.DB.First(&me, "AltID = ?", user.ID)
-	if tx.Error != nil {
-		return nil, tx.Error
+	me, err := gqlcontext.UserFromContext(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	var fr model.FriendRequest
-	tx = model.DB.First(&fr, model.StringIDToIntID(id))
+	tx := model.DB.First(&fr, model.StringIDToIntID(id))
 	if tx.Error != nil {
 		return nil, tx.Error
 	}
@@ -129,11 +123,9 @@ func (r *mutationResolver) CreateDm(ctx context.Context, ids []string, name *str
 		return nil, fmt.Errorf("cannot have more than 8 people in a group")
 	}
 
-	user := gqlcontext.UserFromContext(ctx)
-	var me model.User
-	tx := model.DB.First(&me, "AltID = ?", user.ID)
-	if tx.Error != nil {
-		return nil, tx.Error
+	_, err := gqlcontext.UserFromContext(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	var dm model.DirectMessage
@@ -143,8 +135,8 @@ func (r *mutationResolver) CreateDm(ctx context.Context, ids []string, name *str
 		dm.Name = *name
 	}
 
-	err := model.DB.Transaction(func(db *gorm.DB) error {
-		tx = db.Create(&dm)
+	err = model.DB.Transaction(func(db *gorm.DB) error {
+		tx := db.Create(&dm)
 		if tx.Error != nil {
 			return tx.Error
 		}
@@ -171,15 +163,13 @@ func (r *mutationResolver) CreateDm(ctx context.Context, ids []string, name *str
 
 // SendMessage is the resolver for the sendMessage field.
 func (r *mutationResolver) SendMessage(ctx context.Context, id string, content string) (*model.DirectMessagePost, error) {
-	user := gqlcontext.UserFromContext(ctx)
-	var me model.User
-	tx := model.DB.First(&me, "AltID = ?", user.ID)
-	if tx.Error != nil {
-		return nil, tx.Error
+	me, err := gqlcontext.UserFromContext(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	var dmm []model.DirectMessageMember
-	tx = model.DB.Find(&dmm, "UserID = ?", model.StringIDToIntID(id))
+	tx := model.DB.Find(&dmm, "user_id = ?", model.StringIDToIntID(id))
 	if tx.Error != nil {
 		return nil, tx.Error
 	}
@@ -203,11 +193,9 @@ func (r *mutationResolver) SendMessage(ctx context.Context, id string, content s
 
 // CreateStudyGroup is the resolver for the createStudyGroup field.
 func (r *mutationResolver) CreateStudyGroup(ctx context.Context, classID string, name string, description string) (*model.StudyGroup, error) {
-	user := gqlcontext.UserFromContext(ctx)
-	var me model.User
-	tx := model.DB.First(&me, "AltID = ?", user.ID)
-	if tx.Error != nil {
-		return nil, tx.Error
+	me, err := gqlcontext.UserFromContext(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	var studyGroup model.StudyGroup
@@ -216,7 +204,7 @@ func (r *mutationResolver) CreateStudyGroup(ctx context.Context, classID string,
 	studyGroup.Description = description
 	studyGroup.OwnerID = int(me.ID)
 
-	tx = model.DB.Create(&studyGroup)
+	tx := model.DB.Create(&studyGroup)
 	if tx.Error != nil {
 		return nil, tx.Error
 	}
@@ -225,17 +213,15 @@ func (r *mutationResolver) CreateStudyGroup(ctx context.Context, classID string,
 }
 
 // UpdateStudyGroup is the resolver for the updateStudyGroup field.
-func (r *mutationResolver) UpdateStudyGroup(ctx context.Context, id string, classID string, name string, description string) (*model.StudyGroup, error) {
-	user := gqlcontext.UserFromContext(ctx)
-	var me model.User
-	tx := model.DB.First(&me, "AltID = ?", user.ID)
-	if tx.Error != nil {
-		return nil, tx.Error
+func (r *mutationResolver) UpdateStudyGroup(ctx context.Context, id string, classID string, name string, description string, favorite bool) (*model.StudyGroup, error) {
+	me, err := gqlcontext.UserFromContext(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	var studyGroup model.StudyGroup
 
-	tx = model.DB.First(&studyGroup, model.StringIDToIntID(id))
+	tx := model.DB.First(&studyGroup, model.StringIDToIntID(id))
 	if tx.Error != nil {
 		return nil, tx.Error
 	}
@@ -258,16 +244,14 @@ func (r *mutationResolver) UpdateStudyGroup(ctx context.Context, id string, clas
 
 // DeleteStudyGroup is the resolver for the deleteStudyGroup field.
 func (r *mutationResolver) DeleteStudyGroup(ctx context.Context, id string) (*model.StudyGroup, error) {
-	user := gqlcontext.UserFromContext(ctx)
-	var me model.User
-	tx := model.DB.First(&me, "AltID = ?", user.ID)
-	if tx.Error != nil {
-		return nil, tx.Error
+	me, err := gqlcontext.UserFromContext(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	var studyGroup model.StudyGroup
 
-	tx = model.DB.First(&studyGroup, model.StringIDToIntID(id))
+	tx := model.DB.First(&studyGroup, model.StringIDToIntID(id))
 	if tx.Error != nil {
 		return nil, tx.Error
 	}
@@ -286,57 +270,267 @@ func (r *mutationResolver) DeleteStudyGroup(ctx context.Context, id string) (*mo
 
 // CreatePost is the resolver for the createPost field.
 func (r *mutationResolver) CreatePost(ctx context.Context, studyGroupID string, name string, content string, uploads []*model.UploadWithMeta) (*model.Post, error) {
-	panic(fmt.Errorf("not implemented: CreatePost - createPost"))
+	me, err := gqlcontext.UserFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var studyGroup model.StudyGroup
+	tx := model.DB.First(&studyGroup, model.StringIDToIntID(studyGroupID))
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	var sgm []model.StudyGroupMember
+	tx = model.DB.Find(&sgm, "user_id = ?", me.ID)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	if len(sgm) < 1 {
+		return nil, fmt.Errorf("invalid request")
+	}
+
+	var post model.Post
+	post.StudyGroupID = int(model.StringIDToIntID(studyGroupID))
+	post.Name = name
+	post.Content = content
+	post.PosterID = int(me.ID)
+
+	// Using a transaction to rollback DB operations in case of failure.
+	err = model.DB.Transaction(func(db *gorm.DB) error {
+		tx = db.Create(&studyGroup)
+		if tx.Error != nil {
+			return tx.Error
+		}
+
+		for _, upload := range uploads {
+			var attach model.PostAttachment
+			attach.FileName = upload.Filename
+			if upload.Description != nil {
+				attach.Description = *upload.Description
+			} else {
+				attach.Description = ""
+			}
+			tx = db.Create(&attach)
+			if tx.Error != nil {
+				return tx.Error
+			}
+
+			file, err := os.Create(fmt.Sprintf("uploads/%d", attach.ID))
+			if err != nil {
+				return err
+			}
+			_, err = io.Copy(file, upload.Upload.File)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &post, nil
 }
 
 // UpdatePost is the resolver for the updatePost field.
 func (r *mutationResolver) UpdatePost(ctx context.Context, id string, name string, content string) (*model.Post, error) {
-	panic(fmt.Errorf("not implemented: UpdatePost - updatePost"))
+	_, err := gqlcontext.UserFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var post model.Post
+	tx := model.DB.First(&post, model.StringIDToIntID(id))
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+	post.Name = name
+	post.Content = content
+
+	tx = model.DB.Save(&post)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	return &post, nil
 }
 
 // DeletePost is the resolver for the deletePost field.
 func (r *mutationResolver) DeletePost(ctx context.Context, id string) (*model.Post, error) {
-	panic(fmt.Errorf("not implemented: DeletePost - deletePost"))
+	me, err := gqlcontext.UserFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var post model.Post
+	tx := model.DB.First(&post, model.StringIDToIntID(id))
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	if post.PosterID != int(me.ID) {
+		return nil, fmt.Errorf("invalid request")
+	}
+
+	tx = model.DB.Delete(&post)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	return &post, nil
 }
 
 // Search is the resolver for the search field.
-func (r *queryResolver) Search(ctx context.Context, term string) ([]model.Node, error) {
-	panic(fmt.Errorf("not implemented: Search - search"))
+func (r *queryResolver) Search(ctx context.Context, term string) ([]*model.SearchResult, error) {
+	// TODO: Search
+	panic("todo")
 }
 
 // Feed is the resolver for the feed field.
 func (r *queryResolver) Feed(ctx context.Context, limit int, offset int) ([]*model.Post, error) {
-	panic(fmt.Errorf("not implemented: Feed - feed"))
+	if limit > 20 {
+		return nil, fmt.Errorf("invalid limit")
+	}
+	me, err := gqlcontext.UserFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var posts []model.Post
+	tx := model.DB.Limit(limit).Offset(offset).Joins("StudyGroupMember", model.DB.Where(&model.StudyGroupMember{UserID: int(me.ID)})).Joins("StudyGroup").Order("updated_at desc").Find(&posts)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	var postPointers []*model.Post
+	for _, post := range posts {
+		postPointers = append(postPointers, &post)
+
+	}
+
+	return postPointers, nil
 }
 
 // Classes is the resolver for the classes field.
 func (r *queryResolver) Classes(ctx context.Context) ([]*model.Class, error) {
-	panic(fmt.Errorf("not implemented: Classes - classes"))
+	var classes []model.Class
+	tx := model.DB.Find(&classes)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	var classPointers []*model.Class
+	for _, class := range classes {
+		classPointers = append(classPointers, &class)
+	}
+
+	return classPointers, nil
 }
 
 // StudyGroups is the resolver for the studyGroups field.
-func (r *queryResolver) StudyGroups(ctx context.Context) ([]*model.StudyGroup, error) {
-	panic(fmt.Errorf("not implemented: StudyGroups - studyGroups"))
+func (r *queryResolver) StudyGroups(ctx context.Context, onlyFavorites bool) ([]*model.StudyGroup, error) {
+	me, err := gqlcontext.UserFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var studyGroups []model.StudyGroup
+	if onlyFavorites {
+		tx := model.DB.Joins("StudyGroupMember", model.DB.Where(&model.StudyGroupMember{UserID: int(me.ID)})).Find(&studyGroups, "favorite = ?", true)
+		if tx.Error != nil {
+			return nil, tx.Error
+		}
+	} else {
+		tx := model.DB.Joins("StudyGroupMember", model.DB.Where(&model.StudyGroupMember{UserID: int(me.ID)})).Find(&studyGroups)
+		if tx.Error != nil {
+			return nil, tx.Error
+		}
+	}
+
+	var studyGroupPointers []*model.StudyGroup
+	for _, studyGroup := range studyGroups {
+		studyGroupPointers = append(studyGroupPointers, &studyGroup)
+	}
+
+	return studyGroupPointers, nil
 }
 
 // Dms is the resolver for the dms field.
 func (r *queryResolver) Dms(ctx context.Context) ([]*model.DirectMessage, error) {
-	panic(fmt.Errorf("not implemented: Dms - dms"))
+	me, err := gqlcontext.UserFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var dms []model.DirectMessage
+	tx := model.DB.Joins("DirectMessageMember", model.DB.Where(&model.DirectMessageMember{UserID: int(me.ID)})).Find(&dms)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	var dmPointers []*model.DirectMessage
+	for _, dm := range dms {
+		dmPointers = append(dmPointers, &dm)
+	}
+
+	return dmPointers, nil
 }
 
 // FriendRequests is the resolver for the friendRequests field.
 func (r *queryResolver) FriendRequests(ctx context.Context) ([]*model.FriendRequest, error) {
-	panic(fmt.Errorf("not implemented: FriendRequests - friendRequests"))
+	me, err := gqlcontext.UserFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var frs []model.FriendRequest
+	tx := model.DB.Find(&frs, "receiver_id = ?", me.ID)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	var frsPointers []*model.FriendRequest
+	for _, fr := range frs {
+		frsPointers = append(frsPointers, &fr)
+	}
+
+	return frsPointers, nil
 }
 
 // Friends is the resolver for the friends field.
 func (r *queryResolver) Friends(ctx context.Context) ([]*model.User, error) {
-	panic(fmt.Errorf("not implemented: Friends - friends"))
+	me, err := gqlcontext.UserFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var users []model.User
+	tx := model.DB.Joins("JOIN friend_requests ON friend_requests.sender_id = users.id OR friend_requests.receiver_id = users.id", me.ID, me.ID).Find(&users, "id = ?", me.ID)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	var userPointers []*model.User
+	for _, user := range users {
+		userPointers = append(userPointers, &user)
+	}
+
+	return userPointers, nil
 }
 
 // Me is the resolver for the me field.
 func (r *queryResolver) Me(ctx context.Context) (*model.User, error) {
-	panic(fmt.Errorf("not implemented: Me - me"))
+	me, err := gqlcontext.UserFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return me, nil
 }
 
 // Mutation returns MutationResolver implementation.

@@ -1,13 +1,24 @@
 type Query {
-  search(term: String!): [Node!]!
+  search(term: String!): [SearchResult!]!
 
   feed(limit: Int!, offset: Int!): [Post!]!
   classes: [Class!]!
-  studyGroups: [StudyGroup!]!
+  studyGroups(onlyFavorites: Boolean!): [StudyGroup!]!
   dms: [DirectMessage!]!
   friendRequests: [FriendRequest!]!
   friends: [User!]!
   me: User!
+}
+
+type SearchResult {
+  type: SearchResultType!
+  node: Node!
+}
+
+enum SearchResultType {
+  USER
+  CLASS
+  STUDYGROUP
 }
 
 type Mutation {
@@ -34,7 +45,7 @@ type Mutation {
   # Create a new study group
   createStudyGroup(classID: ID!, name: String!, description: String!): StudyGroup!
   # Update a study group
-  updateStudyGroup(id: ID!, classID: ID!, name: String!, description: String!): StudyGroup!
+  updateStudyGroup(id: ID!, classID: ID!, name: String!, description: String!, favorite: Boolean!): StudyGroup!
   # Delete a study group
   deleteStudyGroup(id: ID!): StudyGroup!
 

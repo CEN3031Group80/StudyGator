@@ -6,18 +6,63 @@ package graph
 
 import (
 	"context"
-	"fmt"
+	"study-gator-backend/graph/gqlcontext"
 	"study-gator-backend/graph/model"
 )
 
 // ID is the resolver for the id field.
 func (r *studyGroupResolver) ID(ctx context.Context, obj *model.StudyGroup) (string, error) {
-	panic(fmt.Errorf("not implemented: ID - id"))
+	return obj.GetID(), nil
+}
+
+// Favorite is the resolver for the favorite field.
+func (r *studyGroupResolver) Favorite(ctx context.Context, obj *model.StudyGroup) (bool, error) {
+	me, err := gqlcontext.UserFromContext(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	var member model.StudyGroupMember
+	tx := model.DB.First(&member, "user_id = ?", me.ID)
+	if tx.Error != nil {
+		return false, tx.Error
+	}
+
+	return member.Favorite, nil
 }
 
 // Posts is the resolver for the posts field.
 func (r *studyGroupResolver) Posts(ctx context.Context, obj *model.StudyGroup, limit int, offset int) ([]*model.Post, error) {
-	panic(fmt.Errorf("not implemented: Posts - posts"))
+	var posts []model.Post
+
+	tx := model.DB.Limit(limit).Offset(offset).Find(&posts, "study_group_id = ?", obj.ID)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	var postPointers []*model.Post
+	for _, post := range posts {
+		postPointers = append(postPointers, &post)
+	}
+
+	return postPointers, nil
+}
+
+// Members is the resolver for the members field.
+func (r *studyGroupResolver) Members(ctx context.Context, obj *model.StudyGroup) ([]*model.User, error) {
+	var users []model.User
+
+	tx := model.DB.Joins("StudyGroupMember", model.DB.Where(&model.StudyGroupMember{StudyGroupID: int(obj.ID)})).Find(&users)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	var userPointers []*model.User
+	for _, user := range users {
+		userPointers = append(userPointers, &user)
+	}
+
+	return userPointers, nil
 }
 
 // StudyGroup returns StudyGroupResolver implementation.

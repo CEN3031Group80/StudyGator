@@ -1,10 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"study-gator-backend/graph"
 	"study-gator-backend/graph/gqlcontext"
+	"study-gator-backend/graph/model"
 	"time"
 
 	"github.com/99designs/gqlgen/graphql/handler"
@@ -55,6 +57,21 @@ func main() {
 	println("SECRET: ", SECRET)
 	println("CID: ", CID)
 	println("CSECRET: ", CSECRET)
+
+	err := model.InitDB()
+	if err != nil {
+		panic(err)
+	}
+
+	if _, err := os.Stat("./uploads"); os.IsNotExist(err) {
+		err := os.MkdirAll("./uploads", 0755)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println("Folder created successfully.")
+	} else {
+		fmt.Println("Folder already exists.")
+	}
 
 	// Auth Options
 	options := auth.Opts{
@@ -114,7 +131,7 @@ func main() {
 	router.Mount("/auth", authRoutes)  // add auth handlers
 	router.Mount("/avatar", avaRoutes) // add avatar handler
 
-	err := http.ListenAndServe(":8080", router)
+	err = http.ListenAndServe(":8080", router)
 	if err != nil {
 		panic(err)
 	}

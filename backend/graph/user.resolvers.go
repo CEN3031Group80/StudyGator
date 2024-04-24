@@ -6,28 +6,51 @@ package graph
 
 import (
 	"context"
-	"fmt"
 	"study-gator-backend/graph/model"
 )
 
 // ID is the resolver for the id field.
 func (r *friendRequestResolver) ID(ctx context.Context, obj *model.FriendRequest) (string, error) {
-	panic(fmt.Errorf("not implemented: ID - id"))
+	return obj.GetID(), nil
+}
+
+// DateCreated is the resolver for the dateCreated field.
+func (r *friendRequestResolver) DateCreated(ctx context.Context, obj *model.FriendRequest) (string, error) {
+	return obj.CreatedAt.String(), nil
 }
 
 // ID is the resolver for the id field.
 func (r *userResolver) ID(ctx context.Context, obj *model.User) (string, error) {
-	panic(fmt.Errorf("not implemented: ID - id"))
+	return obj.GetID(), nil
+}
+
+// DateCreated is the resolver for the dateCreated field.
+func (r *userResolver) DateCreated(ctx context.Context, obj *model.User) (string, error) {
+	return obj.CreatedAt.String(), nil
+}
+
+// DateUpdated is the resolver for the dateUpdated field.
+func (r *userResolver) DateUpdated(ctx context.Context, obj *model.User) (string, error) {
+	return obj.UpdatedAt.String(), nil
 }
 
 // AuthInfo is the resolver for the authInfo field.
 func (r *userResolver) AuthInfo(ctx context.Context, obj *model.User) (*model.AuthInfo, error) {
-	panic(fmt.Errorf("not implemented: AuthInfo - authInfo"))
+	return &model.AuthInfo{
+		Provider: obj.Provider,
+		Name:     obj.Name,
+		Email:    obj.Email,
+	}, nil
 }
 
 // Profile is the resolver for the profile field.
 func (r *userResolver) Profile(ctx context.Context, obj *model.User) (*model.Profile, error) {
-	panic(fmt.Errorf("not implemented: Profile - profile"))
+	return &model.Profile{
+		FirstName:      obj.FirstName,
+		LastName:       obj.LastName,
+		School:         obj.School,
+		GraduationYear: obj.GraduationYear,
+	}, nil
 }
 
 // FriendRequest returns FriendRequestResolver implementation.
