@@ -9,51 +9,279 @@ import (
 	"fmt"
 	"study-gator-backend/graph/gqlcontext"
 	"study-gator-backend/graph/model"
+
+	"gorm.io/gorm"
 )
 
 // AddFriend is the resolver for the addFriend field.
 func (r *mutationResolver) AddFriend(ctx context.Context, id string) (*model.User, error) {
-	panic(fmt.Errorf("not implemented: AddFriend - addFriend"))
+	user := gqlcontext.UserFromContext(ctx)
+	var me model.User
+	tx := model.DB.First(&me, "AltID = ?", user.ID)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	var target model.User
+	tx = model.DB.First(&target, model.StringIDToIntID(id))
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	var fr model.FriendRequest
+	fr.SenderID = int(me.ID)
+	fr.ReceiverID = int(target.ID)
+	fr.Accepted = false
+	tx = model.DB.Create(&fr)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	return &target, nil
 }
 
 // AcceptFriendRequest is the resolver for the acceptFriendRequest field.
 func (r *mutationResolver) AcceptFriendRequest(ctx context.Context, id string) (*model.FriendRequest, error) {
-	panic(fmt.Errorf("not implemented: AcceptFriendRequest - acceptFriendRequest"))
+	user := gqlcontext.UserFromContext(ctx)
+	var me model.User
+	tx := model.DB.First(&me, "AltID = ?", user.ID)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	var fr model.FriendRequest
+	tx = model.DB.First(&fr, model.StringIDToIntID(id))
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	if fr.ReceiverID != int(me.ID) {
+		return nil, fmt.Errorf("invalid friend request")
+	}
+
+	fr.Accepted = true
+
+	tx = model.DB.Save(&fr)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	return &fr, nil
 }
 
 // DeclineFriendRequest is the resolver for the declineFriendRequest field.
 func (r *mutationResolver) DeclineFriendRequest(ctx context.Context, id string) (*model.FriendRequest, error) {
-	panic(fmt.Errorf("not implemented: DeclineFriendRequest - declineFriendRequest"))
+	user := gqlcontext.UserFromContext(ctx)
+	var me model.User
+	tx := model.DB.First(&me, "AltID = ?", user.ID)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	var fr model.FriendRequest
+	tx = model.DB.First(&fr, model.StringIDToIntID(id))
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	if fr.ReceiverID != int(me.ID) {
+		return nil, fmt.Errorf("invalid friend request")
+	}
+
+	tx = model.DB.Delete(&fr)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	return &fr, nil
 }
 
 // RevokeOutgoingFriendRequest is the resolver for the revokeOutgoingFriendRequest field.
 func (r *mutationResolver) RevokeOutgoingFriendRequest(ctx context.Context, id string) (*model.FriendRequest, error) {
-	panic(fmt.Errorf("not implemented: RevokeOutgoingFriendRequest - revokeOutgoingFriendRequest"))
+	user := gqlcontext.UserFromContext(ctx)
+	var me model.User
+	tx := model.DB.First(&me, "AltID = ?", user.ID)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	var fr model.FriendRequest
+	tx = model.DB.First(&fr, model.StringIDToIntID(id))
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	if fr.SenderID != int(me.ID) {
+		return nil, fmt.Errorf("invalid friend request")
+	}
+
+	tx = model.DB.Delete(&fr)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	return &fr, nil
 }
 
 // CreateDm is the resolver for the createDM field.
 func (r *mutationResolver) CreateDm(ctx context.Context, ids []string, name *string) (*model.DirectMessage, error) {
-	panic(fmt.Errorf("not implemented: CreateDm - createDM"))
+	if len(ids) > 8 {
+		return nil, fmt.Errorf("cannot have more than 8 people in a group")
+	}
+
+	user := gqlcontext.UserFromContext(ctx)
+	var me model.User
+	tx := model.DB.First(&me, "AltID = ?", user.ID)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	var dm model.DirectMessage
+	if name == nil {
+		dm.Name = ""
+	} else {
+		dm.Name = *name
+	}
+
+	err := model.DB.Transaction(func(db *gorm.DB) error {
+		tx = db.Create(&dm)
+		if tx.Error != nil {
+			return tx.Error
+		}
+
+		for _, userID := range ids {
+			var dmm model.DirectMessageMember
+			dmm.UserID = int(model.StringIDToIntID(userID))
+			dmm.DirectMessageID = int(dm.ID)
+			tx = db.Create(&dm)
+			if tx.Error != nil {
+				return tx.Error
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &dm, nil
 }
 
 // SendMessage is the resolver for the sendMessage field.
-func (r *mutationResolver) SendMessage(ctx context.Context, id string) (*model.DirectMessagePost, error) {
-	panic(fmt.Errorf("not implemented: SendMessage - sendMessage"))
+func (r *mutationResolver) SendMessage(ctx context.Context, id string, content string) (*model.DirectMessagePost, error) {
+	user := gqlcontext.UserFromContext(ctx)
+	var me model.User
+	tx := model.DB.First(&me, "AltID = ?", user.ID)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	var dmm []model.DirectMessageMember
+	tx = model.DB.Find(&dmm, "UserID = ?", model.StringIDToIntID(id))
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	if len(dmm) < 1 {
+		return nil, fmt.Errorf("invalid request")
+	}
+
+	var dmp model.DirectMessagePost
+	dmp.Content = content
+	dmp.DirectMessageID = int(model.StringIDToIntID(id))
+	dmp.UserID = int(me.ID)
+
+	tx = model.DB.Create(&dmp)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	return &dmp, nil
 }
 
 // CreateStudyGroup is the resolver for the createStudyGroup field.
 func (r *mutationResolver) CreateStudyGroup(ctx context.Context, classID string, name string, description string) (*model.StudyGroup, error) {
-	panic(fmt.Errorf("not implemented: CreateStudyGroup - createStudyGroup"))
+	user := gqlcontext.UserFromContext(ctx)
+	var me model.User
+	tx := model.DB.First(&me, "AltID = ?", user.ID)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	var studyGroup model.StudyGroup
+	studyGroup.ClassID = int(model.StringIDToIntID(classID))
+	studyGroup.Name = name
+	studyGroup.Description = description
+	studyGroup.OwnerID = int(me.ID)
+
+	tx = model.DB.Create(&studyGroup)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	return &studyGroup, nil
 }
 
 // UpdateStudyGroup is the resolver for the updateStudyGroup field.
 func (r *mutationResolver) UpdateStudyGroup(ctx context.Context, id string, classID string, name string, description string) (*model.StudyGroup, error) {
-	panic(fmt.Errorf("not implemented: UpdateStudyGroup - updateStudyGroup"))
+	user := gqlcontext.UserFromContext(ctx)
+	var me model.User
+	tx := model.DB.First(&me, "AltID = ?", user.ID)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	var studyGroup model.StudyGroup
+
+	tx = model.DB.First(&studyGroup, model.StringIDToIntID(id))
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	if studyGroup.OwnerID != int(me.ID) {
+		return nil, fmt.Errorf("invalid request")
+	}
+
+	studyGroup.ClassID = int(model.StringIDToIntID(classID))
+	studyGroup.Name = name
+	studyGroup.Description = description
+
+	tx = model.DB.Save(&studyGroup)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	return &studyGroup, nil
 }
 
 // DeleteStudyGroup is the resolver for the deleteStudyGroup field.
 func (r *mutationResolver) DeleteStudyGroup(ctx context.Context, id string) (*model.StudyGroup, error) {
-	panic(fmt.Errorf("not implemented: DeleteStudyGroup - deleteStudyGroup"))
+	user := gqlcontext.UserFromContext(ctx)
+	var me model.User
+	tx := model.DB.First(&me, "AltID = ?", user.ID)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	var studyGroup model.StudyGroup
+
+	tx = model.DB.First(&studyGroup, model.StringIDToIntID(id))
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	if studyGroup.OwnerID != int(me.ID) {
+		return nil, fmt.Errorf("invalid request")
+	}
+
+	tx = model.DB.Delete(&studyGroup)
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	return &studyGroup, nil
 }
 
 // CreatePost is the resolver for the createPost field.
@@ -108,22 +336,7 @@ func (r *queryResolver) Friends(ctx context.Context) ([]*model.User, error) {
 
 // Me is the resolver for the me field.
 func (r *queryResolver) Me(ctx context.Context) (*model.User, error) {
-	user := gqlcontext.UserFromContext(ctx)
-	return &model.User{
-		ID:        user.ID,
-		AvatarURL: user.Picture,
-		AuthInfo: &model.AuthInfo{
-			Provider: model.AuthProvidersGithub,
-			Name:     user.Name,
-			Email:    user.Email,
-		},
-		Profile: &model.Profile{
-			FirstName:      "Test",
-			LastName:       "Test",
-			School:         "UF",
-			GraduationYear: 2025,
-		},
-	}, nil
+	panic(fmt.Errorf("not implemented: Me - me"))
 }
 
 // Mutation returns MutationResolver implementation.

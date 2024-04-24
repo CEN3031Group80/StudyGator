@@ -1,21 +1,35 @@
 package model
 
+import (
+	"fmt"
+
+	"gorm.io/gorm"
+)
+
 type FriendRequest struct {
-	ID       string `json:"id"`
-	Sender   *User  `json:"sender"`
-	Receiver *User  `json:"receiver"`
-	Accepted bool   `json:"accepted"`
+	gorm.Model
+	SenderID   int
+	Sender     User
+	ReceiverID int
+	Receiver   User
+	Accepted   bool `json:"accepted"`
 }
 
 func (FriendRequest) IsNode()            {}
-func (this FriendRequest) GetID() string { return this.ID }
+func (this FriendRequest) GetID() string { return fmt.Sprintf("fr:%d", this.Model.ID) }
 
 type User struct {
-	ID        string    `json:"id"`
-	AvatarURL string    `json:"avatarURL"`
-	AuthInfo  *AuthInfo `json:"authInfo"`
-	Profile   *Profile  `json:"profile,omitempty"`
+	gorm.Model
+	AltID          string        `gorm:"index:idx_alt_id,unique"`
+	AvatarURL      string        `json:"avatarURL"`
+	Provider       AuthProviders `json:"provider"`
+	Name           string        `json:"name"`
+	Email          string        `json:"email"`
+	FirstName      string        `json:"firstName"`
+	LastName       string        `json:"lastName"`
+	School         string        `json:"school"`
+	GraduationYear int           `json:"graduationYear"`
 }
 
 func (User) IsNode()            {}
-func (this User) GetID() string { return this.ID }
+func (this User) GetID() string { return fmt.Sprintf("user:%d", this.Model.ID) }

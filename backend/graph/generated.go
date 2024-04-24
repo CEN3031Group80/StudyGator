@@ -39,8 +39,16 @@ type Config struct {
 }
 
 type ResolverRoot interface {
+	Class() ClassResolver
+	DirectMessage() DirectMessageResolver
+	DirectMessagePost() DirectMessagePostResolver
+	FriendRequest() FriendRequestResolver
 	Mutation() MutationResolver
+	Post() PostResolver
+	PostAttachment() PostAttachmentResolver
 	Query() QueryResolver
+	StudyGroup() StudyGroupResolver
+	User() UserResolver
 }
 
 type DirectiveRoot struct {
@@ -96,7 +104,7 @@ type ComplexityRoot struct {
 		DeletePost                  func(childComplexity int, id string) int
 		DeleteStudyGroup            func(childComplexity int, id string) int
 		RevokeOutgoingFriendRequest func(childComplexity int, id string) int
-		SendMessage                 func(childComplexity int, id string) int
+		SendMessage                 func(childComplexity int, id string, content string) int
 		UpdatePost                  func(childComplexity int, id string, name string, content string) int
 		UpdateStudyGroup            func(childComplexity int, id string, classID string, name string, description string) int
 	}
@@ -153,19 +161,46 @@ type ComplexityRoot struct {
 	}
 }
 
+type ClassResolver interface {
+	ID(ctx context.Context, obj *model.Class) (string, error)
+	ClassInfo(ctx context.Context, obj *model.Class) (*model.ClassInfo, error)
+	StudyGroups(ctx context.Context, obj *model.Class) ([]*model.StudyGroup, error)
+}
+type DirectMessageResolver interface {
+	ID(ctx context.Context, obj *model.DirectMessage) (string, error)
+	Members(ctx context.Context, obj *model.DirectMessage) ([]*model.User, error)
+
+	Posts(ctx context.Context, obj *model.DirectMessage, limit int, offset int) ([]*model.DirectMessagePost, error)
+}
+type DirectMessagePostResolver interface {
+	ID(ctx context.Context, obj *model.DirectMessagePost) (string, error)
+
+	Sender(ctx context.Context, obj *model.DirectMessagePost) (*model.User, error)
+}
+type FriendRequestResolver interface {
+	ID(ctx context.Context, obj *model.FriendRequest) (string, error)
+}
 type MutationResolver interface {
 	AddFriend(ctx context.Context, id string) (*model.User, error)
 	AcceptFriendRequest(ctx context.Context, id string) (*model.FriendRequest, error)
 	DeclineFriendRequest(ctx context.Context, id string) (*model.FriendRequest, error)
 	RevokeOutgoingFriendRequest(ctx context.Context, id string) (*model.FriendRequest, error)
 	CreateDm(ctx context.Context, ids []string, name *string) (*model.DirectMessage, error)
-	SendMessage(ctx context.Context, id string) (*model.DirectMessagePost, error)
+	SendMessage(ctx context.Context, id string, content string) (*model.DirectMessagePost, error)
 	CreateStudyGroup(ctx context.Context, classID string, name string, description string) (*model.StudyGroup, error)
 	UpdateStudyGroup(ctx context.Context, id string, classID string, name string, description string) (*model.StudyGroup, error)
 	DeleteStudyGroup(ctx context.Context, id string) (*model.StudyGroup, error)
 	CreatePost(ctx context.Context, studyGroupID string, name string, content string, uploads []*model.UploadWithMeta) (*model.Post, error)
 	UpdatePost(ctx context.Context, id string, name string, content string) (*model.Post, error)
 	DeletePost(ctx context.Context, id string) (*model.Post, error)
+}
+type PostResolver interface {
+	ID(ctx context.Context, obj *model.Post) (string, error)
+
+	Attachments(ctx context.Context, obj *model.Post) ([]*model.PostAttachment, error)
+}
+type PostAttachmentResolver interface {
+	ID(ctx context.Context, obj *model.PostAttachment) (string, error)
 }
 type QueryResolver interface {
 	Search(ctx context.Context, term string) ([]model.Node, error)
@@ -176,6 +211,17 @@ type QueryResolver interface {
 	FriendRequests(ctx context.Context) ([]*model.FriendRequest, error)
 	Friends(ctx context.Context) ([]*model.User, error)
 	Me(ctx context.Context) (*model.User, error)
+}
+type StudyGroupResolver interface {
+	ID(ctx context.Context, obj *model.StudyGroup) (string, error)
+
+	Posts(ctx context.Context, obj *model.StudyGroup, limit int, offset int) ([]*model.Post, error)
+}
+type UserResolver interface {
+	ID(ctx context.Context, obj *model.User) (string, error)
+
+	AuthInfo(ctx context.Context, obj *model.User) (*model.AuthInfo, error)
+	Profile(ctx context.Context, obj *model.User) (*model.Profile, error)
 }
 
 type executableSchema struct {
@@ -467,7 +513,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.SendMessage(childComplexity, args["id"].(string)), true
+		return e.complexity.Mutation.SendMessage(childComplexity, args["id"].(string), args["content"].(string)), true
 
 	case "Mutation.updatePost":
 		if e.complexity.Mutation.UpdatePost == nil {
@@ -1095,6 +1141,15 @@ func (ec *executionContext) field_Mutation_sendMessage_args(ctx context.Context,
 		}
 	}
 	args["id"] = arg0
+	var arg1 string
+	if tmp, ok := rawArgs["content"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("content"))
+		arg1, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["content"] = arg1
 	return args, nil
 }
 
@@ -1435,7 +1490,7 @@ func (ec *executionContext) _Class_id(ctx context.Context, field graphql.Collect
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.ID, nil
+		return ec.resolvers.Class().ID(rctx, obj)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1456,8 +1511,8 @@ func (ec *executionContext) fieldContext_Class_id(ctx context.Context, field gra
 	fc = &graphql.FieldContext{
 		Object:     "Class",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type ID does not have child fields")
 		},
@@ -1479,7 +1534,7 @@ func (ec *executionContext) _Class_classInfo(ctx context.Context, field graphql.
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.ClassInfo, nil
+		return ec.resolvers.Class().ClassInfo(rctx, obj)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1500,8 +1555,8 @@ func (ec *executionContext) fieldContext_Class_classInfo(ctx context.Context, fi
 	fc = &graphql.FieldContext{
 		Object:     "Class",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "university_name":
@@ -1531,7 +1586,7 @@ func (ec *executionContext) _Class_studyGroups(ctx context.Context, field graphq
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.StudyGroups, nil
+		return ec.resolvers.Class().StudyGroups(rctx, obj)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1552,8 +1607,8 @@ func (ec *executionContext) fieldContext_Class_studyGroups(ctx context.Context, 
 	fc = &graphql.FieldContext{
 		Object:     "Class",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
@@ -1723,7 +1778,7 @@ func (ec *executionContext) _DirectMessage_id(ctx context.Context, field graphql
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.ID, nil
+		return ec.resolvers.DirectMessage().ID(rctx, obj)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1744,8 +1799,8 @@ func (ec *executionContext) fieldContext_DirectMessage_id(ctx context.Context, f
 	fc = &graphql.FieldContext{
 		Object:     "DirectMessage",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type ID does not have child fields")
 		},
@@ -1767,7 +1822,7 @@ func (ec *executionContext) _DirectMessage_members(ctx context.Context, field gr
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Members, nil
+		return ec.resolvers.DirectMessage().Members(rctx, obj)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1788,8 +1843,8 @@ func (ec *executionContext) fieldContext_DirectMessage_members(ctx context.Conte
 	fc = &graphql.FieldContext{
 		Object:     "DirectMessage",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
@@ -1830,9 +1885,9 @@ func (ec *executionContext) _DirectMessage_name(ctx context.Context, field graph
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*string)
+	res := resTmp.(string)
 	fc.Result = res
-	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+	return ec.marshalOString2string(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_DirectMessage_name(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -1862,7 +1917,7 @@ func (ec *executionContext) _DirectMessage_posts(ctx context.Context, field grap
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Posts, nil
+		return ec.resolvers.DirectMessage().Posts(rctx, obj, fc.Args["limit"].(int), fc.Args["offset"].(int))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1883,8 +1938,8 @@ func (ec *executionContext) fieldContext_DirectMessage_posts(ctx context.Context
 	fc = &graphql.FieldContext{
 		Object:     "DirectMessage",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
@@ -1927,7 +1982,7 @@ func (ec *executionContext) _DirectMessagePost_id(ctx context.Context, field gra
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.ID, nil
+		return ec.resolvers.DirectMessagePost().ID(rctx, obj)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1948,8 +2003,8 @@ func (ec *executionContext) fieldContext_DirectMessagePost_id(ctx context.Contex
 	fc = &graphql.FieldContext{
 		Object:     "DirectMessagePost",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type ID does not have child fields")
 		},
@@ -1983,9 +2038,9 @@ func (ec *executionContext) _DirectMessagePost_directMessage(ctx context.Context
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.DirectMessage)
+	res := resTmp.(model.DirectMessage)
 	fc.Result = res
-	return ec.marshalNDirectMessage2ᚖstudyᚑgatorᚑbackendᚋgraphᚋmodelᚐDirectMessage(ctx, field.Selections, res)
+	return ec.marshalNDirectMessage2studyᚑgatorᚑbackendᚋgraphᚋmodelᚐDirectMessage(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_DirectMessagePost_directMessage(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -2025,7 +2080,7 @@ func (ec *executionContext) _DirectMessagePost_sender(ctx context.Context, field
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Sender, nil
+		return ec.resolvers.DirectMessagePost().Sender(rctx, obj)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2046,8 +2101,8 @@ func (ec *executionContext) fieldContext_DirectMessagePost_sender(ctx context.Co
 	fc = &graphql.FieldContext{
 		Object:     "DirectMessagePost",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
@@ -2123,7 +2178,7 @@ func (ec *executionContext) _FriendRequest_id(ctx context.Context, field graphql
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.ID, nil
+		return ec.resolvers.FriendRequest().ID(rctx, obj)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2144,8 +2199,8 @@ func (ec *executionContext) fieldContext_FriendRequest_id(ctx context.Context, f
 	fc = &graphql.FieldContext{
 		Object:     "FriendRequest",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type ID does not have child fields")
 		},
@@ -2179,9 +2234,9 @@ func (ec *executionContext) _FriendRequest_sender(ctx context.Context, field gra
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.User)
+	res := resTmp.(model.User)
 	fc.Result = res
-	return ec.marshalNUser2ᚖstudyᚑgatorᚑbackendᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
+	return ec.marshalNUser2studyᚑgatorᚑbackendᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_FriendRequest_sender(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -2233,9 +2288,9 @@ func (ec *executionContext) _FriendRequest_receiver(ctx context.Context, field g
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.User)
+	res := resTmp.(model.User)
 	fc.Result = res
-	return ec.marshalNUser2ᚖstudyᚑgatorᚑbackendᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
+	return ec.marshalNUser2studyᚑgatorᚑbackendᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_FriendRequest_receiver(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -2644,7 +2699,7 @@ func (ec *executionContext) _Mutation_sendMessage(ctx context.Context, field gra
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().SendMessage(rctx, fc.Args["id"].(string))
+		return ec.resolvers.Mutation().SendMessage(rctx, fc.Args["id"].(string), fc.Args["content"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -3129,7 +3184,7 @@ func (ec *executionContext) _Post_id(ctx context.Context, field graphql.Collecte
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.ID, nil
+		return ec.resolvers.Post().ID(rctx, obj)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -3150,8 +3205,8 @@ func (ec *executionContext) fieldContext_Post_id(ctx context.Context, field grap
 	fc = &graphql.FieldContext{
 		Object:     "Post",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type ID does not have child fields")
 		},
@@ -3185,9 +3240,9 @@ func (ec *executionContext) _Post_studyGroup(ctx context.Context, field graphql.
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.StudyGroup)
+	res := resTmp.(model.StudyGroup)
 	fc.Result = res
-	return ec.marshalNStudyGroup2ᚖstudyᚑgatorᚑbackendᚋgraphᚋmodelᚐStudyGroup(ctx, field.Selections, res)
+	return ec.marshalNStudyGroup2studyᚑgatorᚑbackendᚋgraphᚋmodelᚐStudyGroup(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Post_studyGroup(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -3245,9 +3300,9 @@ func (ec *executionContext) _Post_poster(ctx context.Context, field graphql.Coll
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.User)
+	res := resTmp.(model.User)
 	fc.Result = res
-	return ec.marshalNUser2ᚖstudyᚑgatorᚑbackendᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
+	return ec.marshalNUser2studyᚑgatorᚑbackendᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Post_poster(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -3375,7 +3430,7 @@ func (ec *executionContext) _Post_attachments(ctx context.Context, field graphql
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Attachments, nil
+		return ec.resolvers.Post().Attachments(rctx, obj)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -3396,8 +3451,8 @@ func (ec *executionContext) fieldContext_Post_attachments(ctx context.Context, f
 	fc = &graphql.FieldContext{
 		Object:     "Post",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
@@ -3429,7 +3484,7 @@ func (ec *executionContext) _PostAttachment_id(ctx context.Context, field graphq
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.ID, nil
+		return ec.resolvers.PostAttachment().ID(rctx, obj)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -3450,8 +3505,8 @@ func (ec *executionContext) fieldContext_PostAttachment_id(ctx context.Context, 
 	fc = &graphql.FieldContext{
 		Object:     "PostAttachment",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type ID does not have child fields")
 		},
@@ -3526,9 +3581,9 @@ func (ec *executionContext) _PostAttachment_description(ctx context.Context, fie
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*string)
+	res := resTmp.(string)
 	fc.Result = res
-	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+	return ec.marshalOString2string(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_PostAttachment_description(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -4359,7 +4414,7 @@ func (ec *executionContext) _StudyGroup_id(ctx context.Context, field graphql.Co
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.ID, nil
+		return ec.resolvers.StudyGroup().ID(rctx, obj)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -4380,8 +4435,8 @@ func (ec *executionContext) fieldContext_StudyGroup_id(ctx context.Context, fiel
 	fc = &graphql.FieldContext{
 		Object:     "StudyGroup",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type ID does not have child fields")
 		},
@@ -4415,9 +4470,9 @@ func (ec *executionContext) _StudyGroup_owner(ctx context.Context, field graphql
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.User)
+	res := resTmp.(model.User)
 	fc.Result = res
-	return ec.marshalNUser2ᚖstudyᚑgatorᚑbackendᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
+	return ec.marshalNUser2studyᚑgatorᚑbackendᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_StudyGroup_owner(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -4601,9 +4656,9 @@ func (ec *executionContext) _StudyGroup_class(ctx context.Context, field graphql
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.Class)
+	res := resTmp.(model.Class)
 	fc.Result = res
-	return ec.marshalNClass2ᚖstudyᚑgatorᚑbackendᚋgraphᚋmodelᚐClass(ctx, field.Selections, res)
+	return ec.marshalNClass2studyᚑgatorᚑbackendᚋgraphᚋmodelᚐClass(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_StudyGroup_class(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -4641,7 +4696,7 @@ func (ec *executionContext) _StudyGroup_posts(ctx context.Context, field graphql
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Posts, nil
+		return ec.resolvers.StudyGroup().Posts(rctx, obj, fc.Args["limit"].(int), fc.Args["offset"].(int))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -4662,8 +4717,8 @@ func (ec *executionContext) fieldContext_StudyGroup_posts(ctx context.Context, f
 	fc = &graphql.FieldContext{
 		Object:     "StudyGroup",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
@@ -4710,7 +4765,7 @@ func (ec *executionContext) _User_id(ctx context.Context, field graphql.Collecte
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.ID, nil
+		return ec.resolvers.User().ID(rctx, obj)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -4731,8 +4786,8 @@ func (ec *executionContext) fieldContext_User_id(ctx context.Context, field grap
 	fc = &graphql.FieldContext{
 		Object:     "User",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type ID does not have child fields")
 		},
@@ -4798,7 +4853,7 @@ func (ec *executionContext) _User_authInfo(ctx context.Context, field graphql.Co
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.AuthInfo, nil
+		return ec.resolvers.User().AuthInfo(rctx, obj)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -4819,8 +4874,8 @@ func (ec *executionContext) fieldContext_User_authInfo(ctx context.Context, fiel
 	fc = &graphql.FieldContext{
 		Object:     "User",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "provider":
@@ -4850,7 +4905,7 @@ func (ec *executionContext) _User_profile(ctx context.Context, field graphql.Col
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Profile, nil
+		return ec.resolvers.User().Profile(rctx, obj)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -4868,8 +4923,8 @@ func (ec *executionContext) fieldContext_User_profile(ctx context.Context, field
 	fc = &graphql.FieldContext{
 		Object:     "User",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "firstName":
@@ -6835,20 +6890,113 @@ func (ec *executionContext) _Class(ctx context.Context, sel ast.SelectionSet, ob
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Class")
 		case "id":
-			out.Values[i] = ec._Class_id(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Class_id(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "classInfo":
-			out.Values[i] = ec._Class_classInfo(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Class_classInfo(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "studyGroups":
-			out.Values[i] = ec._Class_studyGroups(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Class_studyGroups(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -6933,22 +7081,115 @@ func (ec *executionContext) _DirectMessage(ctx context.Context, sel ast.Selectio
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("DirectMessage")
 		case "id":
-			out.Values[i] = ec._DirectMessage_id(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._DirectMessage_id(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "members":
-			out.Values[i] = ec._DirectMessage_members(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._DirectMessage_members(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "name":
 			out.Values[i] = ec._DirectMessage_name(ctx, field, obj)
 		case "posts":
-			out.Values[i] = ec._DirectMessage_posts(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._DirectMessage_posts(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -6984,24 +7225,86 @@ func (ec *executionContext) _DirectMessagePost(ctx context.Context, sel ast.Sele
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("DirectMessagePost")
 		case "id":
-			out.Values[i] = ec._DirectMessagePost_id(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._DirectMessagePost_id(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "directMessage":
 			out.Values[i] = ec._DirectMessagePost_directMessage(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "sender":
-			out.Values[i] = ec._DirectMessagePost_sender(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._DirectMessagePost_sender(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "content":
 			out.Values[i] = ec._DirectMessagePost_content(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
@@ -7038,24 +7341,55 @@ func (ec *executionContext) _FriendRequest(ctx context.Context, sel ast.Selectio
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("FriendRequest")
 		case "id":
-			out.Values[i] = ec._FriendRequest_id(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._FriendRequest_id(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "sender":
 			out.Values[i] = ec._FriendRequest_sender(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "receiver":
 			out.Values[i] = ec._FriendRequest_receiver(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "accepted":
 			out.Values[i] = ec._FriendRequest_accepted(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
@@ -7218,35 +7552,97 @@ func (ec *executionContext) _Post(ctx context.Context, sel ast.SelectionSet, obj
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Post")
 		case "id":
-			out.Values[i] = ec._Post_id(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Post_id(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "studyGroup":
 			out.Values[i] = ec._Post_studyGroup(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "poster":
 			out.Values[i] = ec._Post_poster(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "name":
 			out.Values[i] = ec._Post_name(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "content":
 			out.Values[i] = ec._Post_content(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "attachments":
-			out.Values[i] = ec._Post_attachments(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Post_attachments(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -7282,21 +7678,52 @@ func (ec *executionContext) _PostAttachment(ctx context.Context, sel ast.Selecti
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("PostAttachment")
 		case "id":
-			out.Values[i] = ec._PostAttachment_id(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._PostAttachment_id(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "uploadUUID":
 			out.Values[i] = ec._PostAttachment_uploadUUID(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "description":
 			out.Values[i] = ec._PostAttachment_description(ctx, field, obj)
 		case "fileName":
 			out.Values[i] = ec._PostAttachment_fileName(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
@@ -7613,40 +8040,102 @@ func (ec *executionContext) _StudyGroup(ctx context.Context, sel ast.SelectionSe
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("StudyGroup")
 		case "id":
-			out.Values[i] = ec._StudyGroup_id(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._StudyGroup_id(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "owner":
 			out.Values[i] = ec._StudyGroup_owner(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "name":
 			out.Values[i] = ec._StudyGroup_name(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "description":
 			out.Values[i] = ec._StudyGroup_description(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "joinID":
 			out.Values[i] = ec._StudyGroup_joinID(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "class":
 			out.Values[i] = ec._StudyGroup_class(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "posts":
-			out.Values[i] = ec._StudyGroup_posts(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._StudyGroup_posts(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -7682,22 +8171,115 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("User")
 		case "id":
-			out.Values[i] = ec._User_id(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._User_id(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "avatarURL":
 			out.Values[i] = ec._User_avatarURL(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "authInfo":
-			out.Values[i] = ec._User_authInfo(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._User_authInfo(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "profile":
-			out.Values[i] = ec._User_profile(ctx, field, obj)
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._User_profile(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -8047,6 +8629,10 @@ func (ec *executionContext) ___Type(ctx context.Context, sel ast.SelectionSet, o
 
 // region    ***************************** type.gotpl *****************************
 
+func (ec *executionContext) marshalNAuthInfo2studyᚑgatorᚑbackendᚋgraphᚋmodelᚐAuthInfo(ctx context.Context, sel ast.SelectionSet, v model.AuthInfo) graphql.Marshaler {
+	return ec._AuthInfo(ctx, sel, &v)
+}
+
 func (ec *executionContext) marshalNAuthInfo2ᚖstudyᚑgatorᚑbackendᚋgraphᚋmodelᚐAuthInfo(ctx context.Context, sel ast.SelectionSet, v *model.AuthInfo) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -8080,6 +8666,10 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) marshalNClass2studyᚑgatorᚑbackendᚋgraphᚋmodelᚐClass(ctx context.Context, sel ast.SelectionSet, v model.Class) graphql.Marshaler {
+	return ec._Class(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNClass2ᚕᚖstudyᚑgatorᚑbackendᚋgraphᚋmodelᚐClassᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Class) graphql.Marshaler {
@@ -8134,6 +8724,10 @@ func (ec *executionContext) marshalNClass2ᚖstudyᚑgatorᚑbackendᚋgraphᚋm
 		return graphql.Null
 	}
 	return ec._Class(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNClassInfo2studyᚑgatorᚑbackendᚋgraphᚋmodelᚐClassInfo(ctx context.Context, sel ast.SelectionSet, v model.ClassInfo) graphql.Marshaler {
+	return ec._ClassInfo(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNClassInfo2ᚖstudyᚑgatorᚑbackendᚋgraphᚋmodelᚐClassInfo(ctx context.Context, sel ast.SelectionSet, v *model.ClassInfo) graphql.Marshaler {
@@ -9000,6 +9594,16 @@ func (ec *executionContext) marshalOProfile2ᚖstudyᚑgatorᚑbackendᚋgraph�
 		return graphql.Null
 	}
 	return ec._Profile(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOString2string(ctx context.Context, v interface{}) (string, error) {
+	res, err := graphql.UnmarshalString(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOString2string(ctx context.Context, sel ast.SelectionSet, v string) graphql.Marshaler {
+	res := graphql.MarshalString(v)
+	return res
 }
 
 func (ec *executionContext) unmarshalOString2ᚖstring(ctx context.Context, v interface{}) (*string, error) {

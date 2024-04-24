@@ -9,19 +9,19 @@ require (
 	github.com/gorilla/websocket v1.5.0
 	github.com/rs/cors v1.10.1
 	github.com/vektah/gqlparser/v2 v2.5.11
+	gorm.io/driver/sqlite v1.5.5
+	gorm.io/gorm v1.25.9
 )
 
 require (
 	cloud.google.com/go/compute v1.25.1 // indirect
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
-	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/agnivade/levenshtein v1.1.1 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/dghubble/oauth1 v0.7.3 // indirect
 	github.com/go-oauth2/oauth2/v4 v4.5.2 // indirect
 	github.com/go-pkgz/repeater v1.1.3 // indirect
 	github.com/go-pkgz/rest v1.19.0 // indirect
-	github.com/go-sql-driver/mysql v1.8.1 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
@@ -55,9 +55,4 @@ require (
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	gorm.io/datatypes v1.2.0 // indirect
-	gorm.io/driver/sqlite v1.5.5 // indirect
-	gorm.io/gorm v1.25.9 // indirect
-	gorm.io/hints v1.1.2 // indirect
-	gorm.io/plugin/dbresolver v1.5.1 // indirect
 )

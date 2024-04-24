@@ -1,0 +1,46 @@
+package model
+
+import (
+	"strconv"
+	"strings"
+
+	"gorm.io/driver/sqlite" // Sqlite driver based on CGO
+	// "github.com/glebarez/sqlite" // Pure go SQLite driver, checkout https://github.com/glebarez/sqlite for details
+	"gorm.io/gorm"
+)
+
+var DB *gorm.DB
+
+func InitDB() error {
+	gorm_db, err := gorm.Open(sqlite.Open("database.db"), &gorm.Config{})
+	if err != nil {
+		return err
+	}
+	DB = gorm_db
+
+	DB.AutoMigrate(&Class{})
+	DB.AutoMigrate(&DirectMessage{})
+	DB.AutoMigrate(&DirectMessageMember{})
+	DB.AutoMigrate(&DirectMessagePost{})
+	DB.AutoMigrate(&Post{})
+	DB.AutoMigrate(&PostAttachment{})
+	DB.AutoMigrate(&StudyGroup{})
+	DB.AutoMigrate(&FriendRequest{})
+	DB.AutoMigrate(&User{})
+
+	return nil
+}
+
+func StringIDToIntID(id string) uint {
+	parts := strings.Split(id, ":")
+	if len(parts) < 2 {
+		return 0
+	}
+
+	out, err := strconv.ParseUint(parts[1], 10, 32)
+	if err != nil {
+		return 0
+	}
+
+	return uint(out)
+}
